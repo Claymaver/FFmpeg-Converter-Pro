@@ -2,7 +2,10 @@
   "name": "ffmpeg-video-converter",
   "version": "1.0.0",
   "description": "FFmpeg Video Converter with GUI",
-  "author": "Clay MacDonald",
+  "author": {
+  "name": "Clay MacDonald",
+  "email": "claymaver@proton.me"
+  },
   "main": "main.js",
   "scripts": {
     "start": "electron .",
