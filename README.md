@@ -106,3 +106,4 @@ Feel free to open an issue if you spot a bug or have a feature request.
 ## 📜 License
 
 Check the `LICENSE` file in the repository.
+ 
