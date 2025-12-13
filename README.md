@@ -1,54 +1,108 @@
-# FFmpeg Video Converter (GUI)
+# FFmpeg Video Converter (GUI) 🎬
 
-A simple desktop app for converting videos using FFmpeg. No command line needed — just point, click, and convert.
+A simple cross-platform desktop app for converting videos using FFmpeg — no command line needed. Just point, click, and convert!
 
 ---
 
-## Features
+## 🚀 Features
 
-- Works on Windows, macOS, and Linux  
+- Cross-platform: Windows, macOS, Linux  
 - Built with Electron  
 - Uses FFmpeg under the hood  
 - Easy video conversion without touching the terminal  
 
 ---
 
-## What you need
+## 🛠 Requirements
 
-Make sure you have Node.js (v18 or newer), npm (comes with Node), and FFmpeg installed and available on your PATH. If you don’t have FFmpeg yet, grab it from [ffmpeg.org](https://www.ffmpeg.org/).
+Make sure you have the following installed on your system:
 
----
+- **FFmpeg** installed and on your PATH (if you do not have it, you will be asked if you want to installed it when running the app)
 
-## Running from source
-
-To run the app from source, first clone the repo with `git clone https://github.com/Claymaver/ffmpeg-Converter-GUI.git` and `cd` into the project folder. Then install the dependencies with `npm install` and start the app by running `npm start`. The app should pop up and be ready to use.
+Download FFmpeg here: [https://www.ffmpeg.org/](https://www.ffmpeg.org/)
 
 ---
 
-## Building for distribution
+## 💻 Running from Source
 
-We use **electron-builder**, so you can make installers for your platform. On Windows, you can run `npm run dist-win` to generate `.exe` and `.nsis` installers in the `dist/` folder. On macOS, `npm run dist-mac` will create a `.dmg` installer, and on Linux, `npm run dist-linux` will make `.AppImage` and `.deb` packages. Everything will end up in the `dist/` folder.
+Follow these steps to get the app running locally:
+
+**1. Clone the repository**
+
+```bash
+git clone https://github.com/Claymaver/ffmpeg-Converter-GUI.git
+cd ffmpeg-Converter-GUI
+```
+
+**2. Install dependencies**
+
+```bash
+npm install
+```
+
+**3. Start the app**
+
+```bash
+npm start
+```
+
+The Electron app should launch and be ready to use.
 
 ---
 
-## Notes
+## 📦 Building for Distribution
 
-FFmpeg must be on your PATH, or the app won’t be able to find it. macOS builds aren’t signed by default, so you might see a security warning the first time you open it.
+We use **electron-builder** to create platform-specific installers.
+
+### Windows
+
+```bash
+npm run dist-win
+```
+
+Generates `.exe` (portable) and `.nsis` installer files in the `dist/` folder.
+
+### macOS
+
+```bash
+npm run dist-mac
+```
+
+Creates a `.dmg` installer in `dist/`.
+
+### Linux
+
+```bash
+npm run dist-linux
+```
+
+Produces `.AppImage` and `.deb` packages in `dist/`.
+
+> All build artifacts are output to the `dist/` directory.
 
 ---
 
-## About
+## ⚠️ Notes
 
-Made by **Clay MacDonald**. Built with Electron + FFmpeg for quick, easy video conversions.
-
----
-
-## Contributing
-
-Pull requests, issues, or suggestions are welcome. Just fork the repo, make your changes, and open a PR, or open an issue if you notice a bug or have an idea.
+- FFmpeg must be available on your system PATH, or the app won’t find it.  
+- macOS builds aren’t signed, so you may see a security warning the first time you open them.  
 
 ---
 
-## License
+## 📄 About
 
-Check the LICENSE file (if one is included).
+**Author:** Clay MacDonald  
+Built with Electron + FFmpeg for simple, quick video conversions.
+
+---
+
+## ❤️ Contributing
+
+Contributions are welcome! Fork the repo, make your changes, and open a PR.  
+Feel free to open an issue if you spot a bug or have a feature request.
+
+---
+
+## 📜 License
+
+Check the `LICENSE` file in the repository.
