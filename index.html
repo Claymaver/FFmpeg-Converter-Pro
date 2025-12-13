@@ -257,7 +257,13 @@
     
     <div style="margin-bottom: 20px;">
       <button onclick="selectFolder()">📁 Select Folder</button>
+      <button onclick="selectFile()">📄 Select Single File</button>
       <button id="convertBtn" onclick="startConversion()" disabled>▶️ Start Conversion</button>
+      
+      <label style="margin-left: 20px; display: inline-flex; align-items: center; cursor: pointer;">
+        <input type="checkbox" id="replaceOriginals" style="width: auto; margin-right: 8px;">
+        <span>🔄 Replace original files after successful conversion</span>
+      </label>
     </div>
     
     <div id="fileList" class="file-list" style="display: none;"></div>

@@ -1,3 +1,7 @@
+// ============================================================================
+// renderer.js
+// ============================================================================
+
 let videoFiles = [];
 let converting = false;
 let currentFolder = '';
@@ -225,6 +229,25 @@ async function selectFolder() {
   }
 }
 
+async function selectFile() {
+  if (!ffmpegInstalled) {
+    document.getElementById('status').textContent = '⚠️ Please install FFmpeg first';
+    return;
+  }
+  
+  const filePath = await window.api.selectFile();
+  if (filePath) {
+    const fileInfo = await window.api.getSingleFile(filePath);
+    videoFiles = [fileInfo];
+    
+    document.getElementById('totalFiles').textContent = 1;
+    document.getElementById('convertBtn').disabled = false;
+    
+    displayFiles();
+    document.getElementById('status').textContent = `Selected: ${fileInfo.name}`;
+  }
+}
+
 function displayFiles() {
   const fileList = document.getElementById('fileList');
   fileList.style.display = 'block';
@@ -244,6 +267,15 @@ function displayFiles() {
 
 async function startConversion() {
   if (converting || !ffmpegInstalled) return;
+  
+  const replaceOriginals = document.getElementById('replaceOriginals').checked;
+  
+  // Warn user if replace is enabled
+  if (replaceOriginals) {
+    if (!confirm('⚠️ WARNING: Original files will be permanently deleted after successful conversion.\n\nAre you sure you want to continue?')) {
+      return;
+    }
+  }
   
   converting = true;
   document.getElementById('convertBtn').disabled = true;
@@ -274,9 +306,28 @@ async function startConversion() {
       if (result.success) {
         stats.success++;
         fileElement.style.borderLeftColor = '#4caf50';
-        fileElement.querySelector('.file-details').innerHTML = `
-          ✅ Success! ${file.size} MB → ${result.outputSize} MB (Saved ${result.saved} MB)
-        `;
+        
+        // Replace original if toggle is enabled
+        if (replaceOriginals) {
+          const outputPath = result.outputPath || `converted/${file.cleanName}`;
+          const replaceResult = await window.api.replaceOriginal(file.path, outputPath);
+          
+          if (replaceResult.success) {
+            fileElement.querySelector('.file-details').innerHTML = `
+              ✅ Success! ${file.size} MB → ${result.outputSize} MB (Saved ${result.saved} MB)<br>
+              🔄 Original file replaced
+            `;
+          } else {
+            fileElement.querySelector('.file-details').innerHTML = `
+              ✅ Converted! ${file.size} MB → ${result.outputSize} MB (Saved ${result.saved} MB)<br>
+              ⚠️ Could not replace original: ${replaceResult.error}
+            `;
+          }
+        } else {
+          fileElement.querySelector('.file-details').innerHTML = `
+            ✅ Success! ${file.size} MB → ${result.outputSize} MB (Saved ${result.saved} MB)
+          `;
+        }
       }
     } catch (error) {
       stats.failed++;
@@ -292,7 +343,12 @@ async function startConversion() {
   if (ffmpegInstalled) {
     document.getElementById('convertBtn').disabled = false;
   }
-  document.getElementById('status').textContent = `✅ Complete! ${stats.success} succeeded, ${stats.failed} failed`;
+  
+  if (replaceOriginals) {
+    document.getElementById('status').textContent = `✅ Complete! ${stats.success} converted and replaced, ${stats.failed} failed`;
+  } else {
+    document.getElementById('status').textContent = `✅ Complete! ${stats.success} succeeded, ${stats.failed} failed`;
+  }
 }
 
 window.api.onProgress((data) => {
