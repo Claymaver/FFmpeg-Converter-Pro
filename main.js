@@ -1,7 +1,3 @@
-// ============================================================================
-//  main.js
-// ============================================================================
-
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
@@ -166,25 +162,6 @@ ipcMain.handle('check-ffmpeg', async () => {
   return ffmpegInstalled;
 });
 
-// Replace original file with converted file
-ipcMain.handle('replace-original', async (event, originalPath, convertedPath) => {
-  try {
-    // Delete original
-    fs.unlinkSync(originalPath);
-    
-    // Move converted file to original location
-    const originalDir = path.dirname(originalPath);
-    const convertedFileName = path.basename(convertedPath);
-    const newPath = path.join(originalDir, convertedFileName);
-    
-    fs.renameSync(convertedPath, newPath);
-    
-    return { success: true };
-  } catch (error) {
-    return { success: false, error: error.message };
-  }
-});
-
 // Select folder
 ipcMain.handle('select-folder', async () => {
   if (!ffmpegInstalled) {
@@ -202,32 +179,6 @@ ipcMain.handle('select-folder', async () => {
   });
   
   if (!result.canceled) {
-    return result.filePaths[0];
-  }
-  return null;
-});
-
-// Select single file
-ipcMain.handle('select-file', async () => {
-  if (!ffmpegInstalled) {
-    dialog.showMessageBox(mainWindow, {
-      type: 'warning',
-      title: 'FFmpeg Required',
-      message: 'Please install FFmpeg before selecting files.',
-      buttons: ['OK']
-    });
-    return null;
-  }
-  
-  const result = await dialog.showOpenDialog(mainWindow, {
-    properties: ['openFile'],
-    filters: [
-      { name: 'Video Files', extensions: ['mp4', 'mkv', 'avi', 'mov', 'flv', 'wmv', 'webm', 'm4v', 'mpg', 'mpeg'] },
-      { name: 'All Files', extensions: ['*'] }
-    ]
-  });
-  
-  if (!result.canceled && result.filePaths.length > 0) {
     return result.filePaths[0];
   }
   return null;
@@ -254,20 +205,6 @@ ipcMain.handle('get-video-files', async (event, folderPath) => {
     });
   
   return videoFiles;
-});
-
-// Get single video file info
-ipcMain.handle('get-single-file', async (event, filePath) => {
-  const stats = fs.statSync(filePath);
-  const sizeMB = (stats.size / (1024 * 1024)).toFixed(1);
-  const fileName = path.basename(filePath);
-  
-  return {
-    name: fileName,
-    path: filePath,
-    size: sizeMB,
-    cleanName: cleanFileName(fileName)
-  };
 });
 
 // Clean filename
@@ -353,8 +290,7 @@ ipcMain.handle('convert-file', async (event, fileInfo, settings) => {
         success: true,
         inputSize: fileInfo.size,
         outputSize: outputSizeMB,
-        saved: saved,
-        outputPath: outputPath
+        saved: saved
       });
     });
     
