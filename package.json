@@ -32,7 +32,6 @@
           "arch": ["x64"]
         }
       ],
-      "icon": "build/icon.ico",
       "publisherName": "Clay MacDonald"
     },
     "nsis": {
@@ -52,7 +51,6 @@
           "arch": ["x64", "arm64"]
         }
       ],
-      "icon": "build/icon.icns",
       "category": "public.app-category.video",
       "hardenedRuntime": false,
       "gatekeeperAssess": false,
@@ -78,7 +76,6 @@
           "arch": ["x64"]
         }
       ],
-      "icon": "build/icon.png",
       "category": "Video",
       "maintainer": "Claymaver@proton.me"
     },
