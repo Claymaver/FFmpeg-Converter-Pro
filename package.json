@@ -1,59 +1,110 @@
 {
   "name": "ffmpeg-video-converter",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "FFmpeg Video Converter with GUI",
+  "author": "Clay MacDonald",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "dist-win": "electron-builder --win --publish never",
-    "dist-mac": "electron-builder --mac --publish never",
-    "dist-linux": "electron-builder --linux --publish never"
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder",
+    "dist-win": "electron-builder --win",
+    "dist-mac": "electron-builder --mac",
+    "dist-linux": "electron-builder --linux"
   },
-
-"build": {
-  "appId": "com.ffmpeg.videoconverter",
-  "productName": "FFmpeg Video Converter",
-  "publish": "never",
-
-  "win": {
-    "target": [
-      {
-        "target": "nsis",
-        "arch": ["x64"]
-      }
+  "build": {
+    "appId": "com.ffmpeg.videoconverter",
+    "productName": "FFmpeg Video Converter",
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
+    "publish": null,
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        },
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        },
+        {
+          "target": "zip",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "build/icon.ico",
+      "publisherName": "Clay MacDonald"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "FFmpeg Video Converter"
+    },
+    "portable": {
+      "artifactName": "${productName}-${version}-Portable.${ext}"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["x64", "arm64"]
+        }
+      ],
+      "icon": "build/icon.icns",
+      "category": "public.app-category.video",
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false,
+      "entitlements": null,
+      "entitlementsInherit": null
+    },
+    "dmg": {
+      "title": "${productName} ${version}",
+      "icon": "build/icon.icns"
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": ["x64"]
+        },
+        {
+          "target": "deb",
+          "arch": ["x64"]
+        },
+        {
+          "target": "rpm",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "build/icon.png",
+      "category": "Video",
+      "maintainer": "Claymaver@proton.me"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "index.html",
+      "renderer.js",
+      "node_modules/**/*",
+      "!node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}",
+      "!node_modules/*/{test,__tests__,tests,powered-test,example,examples}",
+      "!node_modules/*.d.ts",
+      "!node_modules/.bin",
+      "!**/*.{iml,o,hprof,orig,pyc,pyo,rbc,swp,csproj,sln,xproj}",
+      "!.editorconfig",
+      "!**/._*",
+      "!**/{.DS_Store,.git,.hg,.svn,CVS,RCS,SCCS,.gitignore,.gitattributes}",
+      "!**/{__pycache__,thumbs.db,.flowconfig,.idea,.vs,.nyc_output}",
+      "!**/{appveyor.yml,.travis.yml,circle.yml}",
+      "!**/{npm-debug.log,yarn.lock,.yarn-integrity,.yarn-metadata.json}"
     ],
-    "icon": "build/icon.ico"
+    "directories": {
+      "buildResources": "build",
+      "output": "dist"
+    }
   },
-
-  "mac": {
-    "target": [
-      {
-        "target": "dmg",
-        "arch": ["arm64", "x64"]
-      }
-    ],
-    "icon": "build/icon.icns",
-    "identity": null
-  },
-
-  "linux": {
-    "target": [
-      "AppImage"
-    ],
-    "maintainer": "Clay MacDonald <claymaver@proton.me>",
-    "category": "Utility",
-    "icon": "build/icon.png"
-  },
-
-  "directories": {
-    "buildResources": "build",
-    "output": "dist"
-  },
-
-  "files": [
-    "**/*"
-  ]
-},
   "dependencies": {
     "fluent-ffmpeg": "^2.1.3"
   },
