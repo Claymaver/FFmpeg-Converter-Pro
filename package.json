@@ -58,8 +58,7 @@
       "entitlementsInherit": null
     },
     "dmg": {
-      "title": "${productName} ${version}",
-      "icon": "build/icon.icns"
+      "title": "${productName} ${version}"
     },
     "linux": {
       "target": [
