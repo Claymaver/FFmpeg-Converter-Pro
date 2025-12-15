@@ -50,22 +50,16 @@ jobs:
       - name: Build for Windows
         if: matrix.platform == 'win'
         run: npm run dist-win
-      
+
       - name: Build for macOS
         if: matrix.platform == 'mac'
         run: npm run dist-mac
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
-      
+
       - name: Build for Linux
         if: matrix.platform == 'linux'
         run: npm run dist-linux
-      
-      - name: List dist contents (debug)
-        run: |
-          echo "Contents of dist folder:"
-          ls -R dist/
-        shell: bash
       
       - name: Upload Windows Artifacts
         if: matrix.platform == 'win'
@@ -118,12 +112,3 @@ jobs:
             linux-build/**/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-```
-
-**File 7: .gitignore**
-```
-node_modules/
-dist/
-*.log
-.DS_Store
-package-lock.json
