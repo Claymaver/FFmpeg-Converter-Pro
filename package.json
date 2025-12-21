@@ -59,6 +59,7 @@
     },
     "dmg": {
       "title": "${productName} ${version}"
+      "background": null
     },
     "linux": {
       "target": [
