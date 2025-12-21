@@ -237,6 +237,8 @@ async function startConversion() {
   document.getElementById('fileListHeader').textContent = 'Converting...';
   stats = { total: videoFiles.length, success: 0, failed: 0 };
   
+  const autoReplace = document.getElementById('auto-replace').checked;
+  
   const settings = {
     crf: parseInt(document.getElementById('crf').value),
     height: parseInt(document.getElementById('height').value),
@@ -261,9 +263,24 @@ async function startConversion() {
       if (result.success) {
         stats.success++;
         fileElement.style.borderLeftColor = '#4caf50';
-        fileElement.querySelector('.file-details').innerHTML = `
-          ✅ ${file.size} MB → ${result.outputSize} MB (Saved ${result.saved} MB)
-        `;
+        
+        // Auto-replace if enabled
+        if (autoReplace) {
+          const replaceResult = await window.api.replaceFile(file.path, result.outputPath);
+          if (replaceResult.success) {
+            fileElement.querySelector('.file-details').innerHTML = `
+              ✅ ${file.size} MB → ${result.outputSize} MB (Saved ${result.saved} MB) - Replaced original
+            `;
+          } else {
+            fileElement.querySelector('.file-details').innerHTML = `
+              ✅ Converted but failed to replace: ${replaceResult.error}
+            `;
+          }
+        } else {
+          fileElement.querySelector('.file-details').innerHTML = `
+            ✅ ${file.size} MB → ${result.outputSize} MB (Saved ${result.saved} MB)
+          `;
+        }
       }
     } catch (error) {
       stats.failed++;
@@ -279,7 +296,12 @@ async function startConversion() {
   if (ffmpegInstalled) {
     document.getElementById('convertBtn').disabled = false;
   }
-  document.getElementById('fileListHeader').textContent = `✅ Complete! ${stats.success} succeeded, ${stats.failed} failed`;
+  
+  if (autoReplace) {
+    document.getElementById('fileListHeader').textContent = `✅ Complete! ${stats.success} converted and replaced`;
+  } else {
+    document.getElementById('fileListHeader').textContent = `✅ Complete! ${stats.success} succeeded, ${stats.failed} failed`;
+  }
 }
 
 window.api.onProgress((data) => {

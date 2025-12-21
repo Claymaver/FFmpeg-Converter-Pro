@@ -333,7 +333,8 @@ ipcMain.handle('convert-file', async (event, fileInfo, settings) => {
         success: true,
         inputSize: fileInfo.size,
         outputSize: outputSizeMB,
-        saved: saved
+        saved: saved,
+        outputPath: outputPath
       });
     });
     
@@ -343,4 +344,34 @@ ipcMain.handle('convert-file', async (event, fileInfo, settings) => {
     
     command.run();
   });
+});
+
+// Replace original file with converted file
+ipcMain.handle('replace-file', async (event, originalPath, convertedPath) => {
+  try {
+    // Get the directory and filename
+    const dir = path.dirname(originalPath);
+    const convertedFilename = path.basename(convertedPath);
+    const newPath = path.join(dir, convertedFilename);
+    
+    // Delete original file
+    if (fs.existsSync(originalPath)) {
+      fs.unlinkSync(originalPath);
+    }
+    
+    // Move converted file to original location
+    fs.renameSync(convertedPath, newPath);
+    
+    // Try to remove converted directory if empty
+    const convertedDir = path.dirname(convertedPath);
+    try {
+      fs.rmdirSync(convertedDir);
+    } catch (e) {
+      // Directory not empty or other error, ignore
+    }
+    
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
 });

@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('api', {
   getVideoFiles: (folder) => ipcRenderer.invoke('get-video-files', folder),
   getFileInfo: (filePaths) => ipcRenderer.invoke('get-file-info', filePaths),
   convertFile: (fileInfo, settings) => ipcRenderer.invoke('convert-file', fileInfo, settings),
+  replaceFile: (originalPath, convertedPath) => ipcRenderer.invoke('replace-file', originalPath, convertedPath),
   onProgress: (callback) => ipcRenderer.on('conversion-progress', (event, data) => callback(data)),
   checkFFmpeg: () => ipcRenderer.invoke('check-ffmpeg'),
   installFFmpeg: () => ipcRenderer.invoke('install-ffmpeg'),
