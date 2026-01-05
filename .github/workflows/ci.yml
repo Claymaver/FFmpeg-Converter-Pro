@@ -55,6 +55,19 @@ jobs:
           fi
         shell: bash
       
+      - name: Ensure app-builder is executable (redundant check)
+        if: runner.os != 'Windows'
+        run: |
+          echo "Final permission check before build..."
+          if [[ "$(uname)" == "Linux" ]]; then
+            chmod -R +x node_modules/app-builder-bin/linux/ 2>/dev/null || true
+            ls -la node_modules/app-builder-bin/linux/x64/app-builder || echo "Binary not found"
+          elif [[ "$(uname)" == "Darwin" ]]; then
+            chmod -R +x node_modules/app-builder-bin/mac/ 2>/dev/null || true
+            ls -la node_modules/app-builder-bin/mac/x64/app-builder || echo "Binary not found"
+          fi
+        shell: bash
+      
       - name: Verify FFmpeg installer
         run: |
           node -e "console.log('FFmpeg path:', require('@ffmpeg-installer/ffmpeg').path)"
