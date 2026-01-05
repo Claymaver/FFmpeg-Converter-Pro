@@ -1,498 +1,338 @@
-// State
-let files = [];
-let converting = false;
-let currentTracks = null;
-let customPresets = loadPresets();
-let successCount = 0;
-let failCount = 0;
-
-// Initialize
-document.addEventListener('DOMContentLoaded', () => {
-  initializeTabs();
-  initializeSettings();
-  initializeButtons();
-  initializePresets();
-  updateCustomPresetList();
-  
-  // Check FFmpeg
-  checkFFmpeg();
-  
-  log('Application ready', 'info');
-});
-
 // Tab switching
-function initializeTabs() {
-  const tabs = document.querySelectorAll('.tab-button');
-  const contents = document.querySelectorAll('.tab-content');
-  
-  tabs.forEach(tab => {
-    tab.addEventListener('click', () => {
-      const tabName = tab.dataset.tab;
-      
-      tabs.forEach(t => t.classList.remove('active'));
-      tab.classList.add('active');
-      
-      contents.forEach(c => {
-        if (c.id === `tab-${tabName}`) {
-          c.classList.remove('hidden');
-        } else {
-          c.classList.add('hidden');
-        }
-      });
-    });
+function switchTab(tabName) {
+  // Hide all tab contents
+  document.querySelectorAll('.tab-content').forEach(content => {
+    content.classList.remove('active');
   });
+  
+  // Deactivate all tabs
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.classList.remove('active');
+  });
+  
+  // Show selected tab content
+  document.getElementById(tabName + '-tab').classList.add('active');
+  
+  // Activate selected tab
+  event.target.classList.add('active');
 }
 
-// Settings event listeners
-function initializeSettings() {
-  // Track mode change
-  document.getElementById('track-mode').addEventListener('change', (e) => {
-    const mode = e.target.value;
-    document.getElementById('language-settings').classList.toggle('hidden', mode !== 'language');
-    document.getElementById('custom-settings').classList.toggle('hidden', mode !== 'custom');
-  });
-  
-  // CRF slider
-  document.getElementById('crf').addEventListener('input', (e) => {
-    document.getElementById('crf-value').textContent = e.target.value;
-  });
-  
-  // Resolution quick buttons
-  document.querySelectorAll('.res-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.getElementById('resolution').value = btn.dataset.res;
-    });
-  });
-  
-  // Bitrate quick buttons
-  document.querySelectorAll('.br-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.getElementById('audio-bitrate').value = btn.dataset.br;
-    });
-  });
-}
+// Video conversion logic
+let videoFiles = [];
+let converting = false;
+let currentFolder = '';
+let stats = { total: 0, success: 0, failed: 0 };
+let ffmpegInstalled = false;
+let customPresets = {};
 
-// Button event listeners
-function initializeButtons() {
-  document.getElementById('folder-btn').addEventListener('click', selectFolder);
-  document.getElementById('files-btn').addEventListener('click', selectFiles);
-  document.getElementById('clear-btn').addEventListener('click', clearFiles);
-  document.getElementById('convert-btn').addEventListener('click', startConversion);
-  document.getElementById('stop-btn').addEventListener('click', stopConversion);
-  document.getElementById('analyze-btn').addEventListener('click', analyzeFile);
-  document.getElementById('save-preset').addEventListener('click', savePreset);
-}
-
-// Preset buttons
-function initializePresets() {
-  const presets = {
-    tv: { resolution: 720, crf: 28, preset: 'fast', codec: 'libx264', container: 'mkv' },
-    movie: { resolution: 1080, crf: 23, preset: 'slow', codec: 'libx264', container: 'mkv' },
-    quality: { resolution: 1080, crf: 18, preset: 'slower', codec: 'libx264', container: 'mkv' },
-    small: { resolution: 720, crf: 30, preset: 'fast', codec: 'libx265', container: 'mp4' }
-  };
-  
-  document.querySelectorAll('.preset-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const preset = presets[btn.dataset.preset];
-      applyPreset(preset);
-      log(`Applied ${btn.textContent.trim()} preset`, 'info');
-    });
-  });
-}
-
-// Apply preset
-function applyPreset(settings) {
-  if (settings.resolution) document.getElementById('resolution').value = settings.resolution;
-  if (settings.crf) {
-    document.getElementById('crf').value = settings.crf;
-    document.getElementById('crf-value').textContent = settings.crf;
+// Load custom presets from localStorage
+function loadCustomPresets() {
+  const saved = localStorage.getItem('customPresets');
+  if (saved) {
+    customPresets = JSON.parse(saved);
+    updatePresetDropdown();
   }
-  if (settings.preset) document.getElementById('preset').value = settings.preset;
-  if (settings.codec) document.getElementById('codec').value = settings.codec;
-  if (settings.container) document.getElementById('container').value = settings.container;
-  if (settings.audioCodec) document.getElementById('audio-codec').value = settings.audioCodec;
-  if (settings.audioBitrate) document.getElementById('audio-bitrate').value = settings.audioBitrate;
 }
 
-// Custom presets
+// Update preset dropdown with custom presets
+function updatePresetDropdown() {
+  const select = document.getElementById('preset-select');
+  
+  // Remove old custom presets
+  const options = select.querySelectorAll('option');
+  options.forEach(opt => {
+    if (opt.getAttribute('data-custom') === 'true') {
+      opt.remove();
+    }
+  });
+  
+  // Add custom presets
+  Object.keys(customPresets).forEach(name => {
+    const option = document.createElement('option');
+    option.value = `custom_${name}`;
+    option.textContent = `⭐ ${name}`;
+    option.setAttribute('data-custom', 'true');
+    select.appendChild(option);
+  });
+}
+
+// Save current settings as preset
 function savePreset() {
   const name = document.getElementById('preset-name').value.trim();
+  
   if (!name) {
     alert('Please enter a preset name');
     return;
   }
   
-  const settings = getSettings();
+  const settings = {
+    height: parseInt(document.getElementById('height').value),
+    crf: parseInt(document.getElementById('crf').value),
+    audio: parseInt(document.getElementById('audio').value),
+    speed: document.getElementById('speed').value,
+    codec: document.getElementById('codec').value,
+    audioCodec: document.getElementById('audio-codec').value
+  };
+  
   customPresets[name] = settings;
-  savePresets(customPresets);
-  updateCustomPresetList();
+  localStorage.setItem('customPresets', JSON.stringify(customPresets));
   
-  document.getElementById('preset-name').value = '';
-  log(`Saved preset: ${name}`, 'success');
+  updatePresetDropdown();
+  document.getElementById('preset-select').value = `custom_${name}`;
+  document.getElementById('fileListHeader').textContent = `✅ Preset "${name}" saved!`;
 }
 
-function updateCustomPresetList() {
-  const container = document.getElementById('custom-presets');
-  container.innerHTML = '';
+// Delete selected preset
+function deletePreset() {
+  const select = document.getElementById('preset-select');
+  const value = select.value;
   
-  Object.keys(customPresets).forEach(name => {
-    const div = document.createElement('div');
-    div.className = 'flex items-center gap-2 p-2 bg-gray-700 rounded hover:bg-gray-600 transition';
-    
-    const nameSpan = document.createElement('span');
-    nameSpan.className = 'flex-1 text-sm cursor-pointer';
-    nameSpan.textContent = name;
-    nameSpan.onclick = () => {
-      applyPreset(customPresets[name]);
-      log(`Loaded preset: ${name}`, 'info');
-    };
-    
-    const deleteBtn = document.createElement('button');
-    deleteBtn.className = 'px-2 py-1 text-xs bg-red-600 hover:bg-red-700 rounded';
-    deleteBtn.textContent = '🗑️';
-    deleteBtn.onclick = () => {
-      delete customPresets[name];
-      savePresets(customPresets);
-      updateCustomPresetList();
-      log(`Deleted preset: ${name}`, 'info');
-    };
-    
-    div.appendChild(nameSpan);
-    div.appendChild(deleteBtn);
-    container.appendChild(div);
-  });
-}
-
-function loadPresets() {
-  try {
-    const saved = localStorage.getItem('ffmpeg-presets');
-    return saved ? JSON.parse(saved) : {};
-  } catch {
-    return {};
+  if (!value.startsWith('custom_')) {
+    alert('Please select a custom preset to delete');
+    return;
+  }
+  
+  const name = value.replace('custom_', '');
+  
+  if (confirm(`Delete preset "${name}"?`)) {
+    delete customPresets[name];
+    localStorage.setItem('customPresets', JSON.stringify(customPresets));
+    updatePresetDropdown();
+    select.value = '';
+    document.getElementById('fileListHeader').textContent = `🗑️ Preset "${name}" deleted`;
   }
 }
 
-function savePresets(presets) {
-  localStorage.setItem('ffmpeg-presets', JSON.stringify(presets));
+// Load preset settings
+function loadPreset() {
+  const value = document.getElementById('preset-select').value;
+  
+  if (!value) return;
+  
+  let settings;
+  
+  // Built-in presets
+  if (value === 'tv') {
+    settings = { height: 720, crf: 28, audio: 192, speed: 'slow', codec: 'libx264', audioCodec: 'aac' };
+  } else if (value === 'movie') {
+    settings = { height: 1080, crf: 23, audio: 192, speed: 'slow', codec: 'libx264', audioCodec: 'aac' };
+  } else if (value === 'high-quality') {
+    settings = { height: 1080, crf: 18, audio: 256, speed: 'slower', codec: 'libx264', audioCodec: 'aac' };
+  } else if (value === 'small-size') {
+    settings = { height: 720, crf: 30, audio: 128, speed: 'medium', codec: 'libx265', audioCodec: 'aac' };
+  } else if (value.startsWith('custom_')) {
+    // Custom preset
+    const name = value.replace('custom_', '');
+    settings = customPresets[name];
+    document.getElementById('preset-name').value = name;
+  }
+  
+  if (settings) {
+    document.getElementById('height').value = settings.height;
+    document.getElementById('crf').value = settings.crf;
+    document.getElementById('audio').value = settings.audio;
+    document.getElementById('speed').value = settings.speed;
+    document.getElementById('codec').value = settings.codec;
+    document.getElementById('audio-codec').value = settings.audioCodec;
+  }
 }
 
-// File selection
-async function selectFolder() {
-  const result = await window.electronAPI.selectFolder();
-  if (result.canceled) return;
+// Check FFmpeg status on load
+window.addEventListener('DOMContentLoaded', async () => {
+  loadCustomPresets();
+  ffmpegInstalled = await window.api.checkFFmpeg();
+  updateFFmpegBanner();
+});
+
+// Listen for FFmpeg status updates
+window.api.onFFmpegStatus((data) => {
+  ffmpegInstalled = data.installed;
+  updateFFmpegBanner();
+});
+
+// Listen for installation progress
+window.api.onInstallProgress((message) => {
+  document.getElementById('installProgress').textContent = message;
+});
+
+function updateFFmpegBanner() {
+  const banner = document.getElementById('ffmpegBanner');
+  const convertBtn = document.getElementById('convertBtn');
   
-  const recursive = document.getElementById('recursive').checked;
-  const scanResult = await window.electronAPI.scanFolder(result.path, recursive);
-  
-  if (scanResult.success) {
-    files = scanResult.files;
-    updateFileList();
-    log(`Found ${files.length} files`, 'success');
+  if (ffmpegInstalled) {
+    banner.style.display = 'none';
+    if (videoFiles.length > 0) {
+      convertBtn.disabled = false;
+    }
   } else {
-    log(`Error scanning folder: ${scanResult.error}`, 'error');
+    banner.style.display = 'block';
+    convertBtn.disabled = true;
+  }
+}
+
+async function installFFmpeg() {
+  const installBtn = document.getElementById('installBtn');
+  const progressDiv = document.getElementById('installProgress');
+  
+  installBtn.disabled = true;
+  installBtn.textContent = '⏳ Installing...';
+  progressDiv.textContent = 'Starting installation...';
+  
+  const result = await window.api.installFFmpeg();
+  
+  if (result.success) {
+    progressDiv.textContent = '✅ FFmpeg installed successfully!';
+    progressDiv.style.color = '#4caf50';
+    setTimeout(() => {
+      updateFFmpegBanner();
+    }, 2000);
+  } else {
+    progressDiv.textContent = `❌ ${result.error}`;
+    progressDiv.style.color = '#f44336';
+    installBtn.disabled = false;
+    installBtn.textContent = '🔧 Retry Installation';
+  }
+}
+
+async function selectFolder() {
+  if (!ffmpegInstalled) {
+    document.getElementById('fileListHeader').textContent = '⚠️ Please install FFmpeg first';
+    return;
+  }
+  
+  const recursive = document.getElementById('recursive-mode').checked;
+  const folder = await window.api.selectFolder(recursive);
+  if (folder) {
+    currentFolder = folder;
+    videoFiles = await window.api.getVideoFiles(folder, recursive);
+    
+    document.getElementById('totalFiles').textContent = videoFiles.length;
+    document.getElementById('convertBtn').disabled = videoFiles.length === 0;
+    
+    displayFiles();
   }
 }
 
 async function selectFiles() {
-  const result = await window.electronAPI.selectFiles();
-  if (result.canceled) return;
-  
-  files = result.files.map(path => ({
-    path,
-    name: path.split(/[\\/]/).pop(),
-    size: '?'
-  }));
-  
-  updateFileList();
-  log(`Selected ${files.length} files`, 'success');
-}
-
-function clearFiles() {
-  files = [];
-  currentTracks = null;
-  updateFileList();
-  log('Cleared file list', 'info');
-}
-
-function updateFileList() {
-  const container = document.getElementById('file-list');
-  
-  if (files.length === 0) {
-    container.innerHTML = `
-      <div class="p-8 text-center text-gray-500">
-        <div class="text-4xl mb-3">📁</div>
-        <div>No files selected</div>
-        <div class="text-sm mt-2">Click "Folder" or "Files" to start</div>
-      </div>
-    `;
-  } else {
-    container.innerHTML = files.map((file, i) => `
-      <div class="file-item px-4 py-3 border-b border-gray-700 cursor-pointer hover:bg-gray-700 transition" data-index="${i}">
-        <div class="font-medium">${escapeHtml(file.name)}</div>
-        <div class="text-xs text-gray-400 mt-1">${file.size} MB</div>
-      </div>
-    `).join('');
-    
-    // Click handler
-    container.querySelectorAll('.file-item').forEach(item => {
-      item.addEventListener('click', () => {
-        container.querySelectorAll('.file-item').forEach(el => el.classList.remove('active'));
-        item.classList.add('active');
-      });
-    });
-  }
-  
-  document.getElementById('total-count').textContent = files.length;
-  successCount = 0;
-  failCount = 0;
-  document.getElementById('success-count').textContent = successCount;
-  document.getElementById('fail-count').textContent = failCount;
-  document.getElementById('progress-bar').style.width = '0%';
-  document.getElementById('progress-text').textContent = 'Ready';
-}
-
-// Analyze file for tracks
-async function analyzeFile() {
-  const activeItem = document.querySelector('.file-item.active');
-  if (!activeItem) {
-    alert('Please select a file from the list');
+  if (!ffmpegInstalled) {
+    document.getElementById('fileListHeader').textContent = '⚠️ Please install FFmpeg first';
     return;
   }
   
-  const index = parseInt(activeItem.dataset.index);
-  const file = files[index];
-  
-  log(`Analyzing: ${file.name}`, 'info');
-  
-  const result = await window.electronAPI.probeFile(file.path);
-  
-  if (result.success) {
-    currentTracks = result;
-    displayTracks();
-    log(`Found ${result.audio.length} audio and ${result.subtitle.length} subtitle tracks`, 'success');
-  } else {
-    log(`Error analyzing file: ${result.error}`, 'error');
-    alert(`Failed to analyze file:\n${result.error}`);
-  }
-}
-
-function displayTracks() {
-  const container = document.getElementById('track-list');
-  
-  if (!currentTracks) {
-    container.innerHTML = '<p class="text-sm text-gray-500 text-center py-8">No tracks analyzed</p>';
-    return;
-  }
-  
-  let html = '';
-  
-  if (currentTracks.audio.length > 0) {
-    html += '<div class="font-medium text-sm mb-2">Audio Tracks:</div>';
-    currentTracks.audio.forEach(track => {
-      const lang = track.language.toUpperCase();
-      const bitrate = track.bitrate ? ` - ${Math.round(track.bitrate/1000)}kbps` : '';
-      const title = track.title ? ` - ${track.title}` : '';
-      
-      html += `
-        <label class="flex items-start p-2 bg-gray-700 rounded hover:bg-gray-600 cursor-pointer">
-          <input type="checkbox" class="audio-track mt-1 mr-3" data-index="${track.index}" checked>
-          <div class="text-sm">
-            <div class="font-medium">Track ${track.streamIndex}: ${lang} - ${track.codec} - ${track.channels}ch${bitrate}</div>
-            ${title ? `<div class="text-xs text-gray-400">${title}</div>` : ''}
-          </div>
-        </label>
-      `;
-    });
-  }
-  
-  if (currentTracks.subtitle.length > 0) {
-    html += '<div class="font-medium text-sm mb-2 mt-4">Subtitle Tracks:</div>';
-    currentTracks.subtitle.forEach(track => {
-      const lang = track.language.toUpperCase();
-      const title = track.title ? ` - ${track.title}` : '';
-      
-      html += `
-        <label class="flex items-start p-2 bg-gray-700 rounded hover:bg-gray-600 cursor-pointer">
-          <input type="checkbox" class="subtitle-track mt-1 mr-3" data-index="${track.index}" checked>
-          <div class="text-sm">
-            <div class="font-medium">Track ${track.streamIndex}: ${lang} - ${track.codec}</div>
-            ${title ? `<div class="text-xs text-gray-400">${title}</div>` : ''}
-          </div>
-        </label>
-      `;
-    });
-  }
-  
-  if (html === '') {
-    html = '<p class="text-sm text-gray-500 text-center py-8">No audio or subtitle tracks found</p>';
-  }
-  
-  container.innerHTML = html;
-}
-
-// Get current settings
-function getSettings() {
-  const trackMode = document.getElementById('track-mode').value;
-  const settings = {
-    resolution: parseInt(document.getElementById('resolution').value),
-    crf: parseInt(document.getElementById('crf').value),
-    preset: document.getElementById('preset').value,
-    codec: document.getElementById('codec').value,
-    container: document.getElementById('container').value,
-    audioCodec: document.getElementById('audio-codec').value,
-    audioBitrate: parseInt(document.getElementById('audio-bitrate').value),
-    trackMode,
-    autoReplace: document.getElementById('auto-replace').checked,
-    cleanFilenames: document.getElementById('clean-filenames').checked
-  };
-  
-  if (trackMode === 'language') {
-    const audioLangs = document.getElementById('audio-languages').value
-      .split(',').map(s => s.trim()).filter(s => s);
-    const subLangs = document.getElementById('subtitle-languages').value
-      .split(',').map(s => s.trim()).filter(s => s);
+  const filePaths = await window.api.selectFiles();
+  if (filePaths && filePaths.length > 0) {
+    currentFolder = filePaths[0].substring(0, filePaths[0].lastIndexOf('\\'));
+    videoFiles = await window.api.getFileInfo(filePaths);
     
-    settings.audioLanguages = audioLangs.length > 0 ? audioLangs : ['eng'];
-    settings.subtitleLanguages = subLangs;
-    settings.keepFirstAudio = document.getElementById('keep-first-audio').checked;
-  } else if (trackMode === 'custom' && currentTracks) {
-    const audioTracks = Array.from(document.querySelectorAll('.audio-track:checked'))
-      .map(cb => parseInt(cb.dataset.index));
-    const subtitleTracks = Array.from(document.querySelectorAll('.subtitle-track:checked'))
-      .map(cb => parseInt(cb.dataset.index));
+    document.getElementById('totalFiles').textContent = videoFiles.length;
+    document.getElementById('convertBtn').disabled = videoFiles.length === 0;
     
-    settings.selectedAudioTracks = audioTracks;
-    settings.selectedSubtitleTracks = subtitleTracks;
+    displayFiles();
   }
-  
-  return settings;
 }
 
-// Conversion
+function displayFiles() {
+  const fileList = document.getElementById('fileList');
+  const fileListHeader = document.getElementById('fileListHeader');
+  
+  fileListHeader.textContent = `${videoFiles.length} file(s) ready to convert`;
+  
+  fileList.innerHTML = videoFiles.map((file, index) => `
+    <div class="file-item" id="file-${index}">
+      <div class="file-name" title="${file.name}">${file.name}</div>
+      <div class="file-details">
+        ${file.size} MB → ${file.cleanName}
+      </div>
+      <div class="progress-bar" style="display: none;">
+        <div class="progress-fill" style="width: 0%"></div>
+      </div>
+    </div>
+  `).join('');
+}
+
 async function startConversion() {
-  if (files.length === 0) {
-    alert('Please select files to convert');
-    return;
-  }
-  
-  if (converting) {
-    alert('Conversion already in progress');
-    return;
-  }
-  
-  const settings = getSettings();
-  
-  if (settings.autoReplace) {
-    if (!confirm('⚠️ WARNING: Auto-replace will DELETE original files!\n\nAre you sure you want to continue?')) {
-      return;
-    }
-  }
+  if (converting || !ffmpegInstalled) return;
   
   converting = true;
-  successCount = 0;
-  failCount = 0;
+  document.getElementById('convertBtn').disabled = true;
+  document.getElementById('fileListHeader').textContent = 'Converting...';
+  stats = { total: videoFiles.length, success: 0, failed: 0 };
   
-  document.getElementById('convert-btn').disabled = true;
-  document.getElementById('stop-btn').disabled = false;
+  const autoReplace = document.getElementById('auto-replace').checked;
   
-  log('='.repeat(60), 'info');
-  log('Starting batch conversion...', 'info');
-  log('='.repeat(60), 'info');
+  const settings = {
+    crf: parseInt(document.getElementById('crf').value),
+    height: parseInt(document.getElementById('height').value),
+    width: Math.round(parseInt(document.getElementById('height').value) * 16 / 9),
+    audioBitrate: parseInt(document.getElementById('audio').value),
+    preset: document.getElementById('speed').value,
+    codec: document.getElementById('codec').value,
+    audioCodec: document.getElementById('audio-codec').value,
+    container: document.getElementById('container').value,
+    cleanFilenames: document.getElementById('standardize-names').checked
+  };
   
-  for (let i = 0; i < files.length; i++) {
-    if (!converting) {
-      log('Conversion stopped by user', 'warn');
-      break;
-    }
+  for (let i = 0; i < videoFiles.length; i++) {
+    const file = videoFiles[i];
+    const fileElement = document.getElementById(`file-${i}`);
+    const progressBar = fileElement.querySelector('.progress-bar');
     
-    const file = files[i];
-    const progress = ((i) / files.length) * 100;
-    document.getElementById('progress-bar').style.width = `${progress}%`;
-    document.getElementById('progress-text').textContent = `Converting ${i + 1}/${files.length}`;
-    
-    // Highlight current file
-    const fileItems = document.querySelectorAll('.file-item');
-    fileItems.forEach(item => item.classList.remove('active'));
-    if (fileItems[i]) fileItems[i].classList.add('active');
-    
-    log(`\n[${i + 1}/${files.length}] ${file.name}`, 'info');
+    progressBar.style.display = 'block';
+    document.getElementById('fileListHeader').textContent = `Converting ${i + 1}/${videoFiles.length}: ${file.name}`;
     
     try {
-      const result = await window.electronAPI.convertFile(file.path, settings);
+      const result = await window.api.convertFile(file, settings);
       
       if (result.success) {
-        successCount++;
-        log(`✓ Success! ${result.inputSize}MB → ${result.outputSize}MB (saved ${result.saved}MB, ${result.percent}%)`, 'success');
-      } else {
-        failCount++;
-        log(`✗ Failed: ${result.error}`, 'error');
+        stats.success++;
+        fileElement.style.borderLeftColor = '#4caf50';
+        
+        // Auto-replace if enabled
+        if (autoReplace) {
+          const replaceResult = await window.api.replaceFile(file.path, result.outputPath);
+          if (replaceResult.success) {
+            fileElement.querySelector('.file-details').innerHTML = `
+              ✅ ${file.size} MB → ${result.outputSize} MB (Saved ${result.saved} MB) - Replaced original
+            `;
+          } else {
+            fileElement.querySelector('.file-details').innerHTML = `
+              ✅ Converted but failed to replace: ${replaceResult.error}
+            `;
+          }
+        } else {
+          fileElement.querySelector('.file-details').innerHTML = `
+            ✅ ${file.size} MB → ${result.outputSize} MB (Saved ${result.saved} MB)
+          `;
+        }
       }
     } catch (error) {
-      failCount++;
-      log(`✗ Error: ${error.message}`, 'error');
+      stats.failed++;
+      fileElement.style.borderLeftColor = '#f44336';
+      fileElement.querySelector('.file-details').innerHTML = `❌ Failed: ${error.error || 'Unknown error'}`;
     }
     
-    document.getElementById('success-count').textContent = successCount;
-    document.getElementById('fail-count').textContent = failCount;
+    document.getElementById('successCount').textContent = stats.success;
+    document.getElementById('failedCount').textContent = stats.failed;
   }
   
   converting = false;
-  document.getElementById('convert-btn').disabled = false;
-  document.getElementById('stop-btn').disabled = true;
-  document.getElementById('progress-bar').style.width = '100%';
-  document.getElementById('progress-text').textContent = 'Complete';
-  
-  log('='.repeat(60), 'info');
-  log(`Batch conversion complete! ✓${successCount} ✗${failCount}`, 'success');
-  
-  await window.electronAPI.showInfo('Conversion Complete', 
-    `Success: ${successCount}\nFailed: ${failCount}\n\nCheck the 'converted' folder for output files.`);
-}
-
-function stopConversion() {
-  converting = false;
-  log('Stopping conversion...', 'warn');
-}
-
-// Listen for progress updates
-window.electronAPI.onConversionProgress((data) => {
-  if (data.percent) {
-    document.getElementById('progress-text').textContent = 
-      `${data.file} - ${data.percent.toFixed(1)}%`;
+  if (ffmpegInstalled) {
+    document.getElementById('convertBtn').disabled = false;
   }
-});
-
-// Listen for log messages
-window.electronAPI.onConversionLog((message) => {
-  log(message, 'info');
-});
-
-// Logging
-function log(message, type = '') {
-  const logPanel = document.getElementById('log-panel');
-  const entry = document.createElement('div');
-  entry.className = `log-entry log-${type}`;
-  entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
-  logPanel.appendChild(entry);
-  logPanel.scrollTop = logPanel.scrollHeight;
-}
-
-// Check FFmpeg
-async function checkFFmpeg() {
-  const result = await window.electronAPI.checkFFmpeg();
-  if (result.success) {
-    log('FFmpeg ready', 'success');
+  
+  if (autoReplace) {
+    document.getElementById('fileListHeader').textContent = `✅ Complete! ${stats.success} converted and replaced`;
   } else {
-    log('FFmpeg error: ' + result.error, 'error');
+    document.getElementById('fileListHeader').textContent = `✅ Complete! ${stats.success} succeeded, ${stats.failed} failed`;
   }
 }
 
-// Utility
-function escapeHtml(text) {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
-}
-
-console.log('Renderer loaded');
+window.api.onProgress((data) => {
+  const index = videoFiles.findIndex(f => f.name === data.file);
+  if (index >= 0) {
+    const progressFill = document.querySelector(`#file-${index} .progress-fill`);
+    if (progressFill) {
+      progressFill.style.width = `${Math.min(data.percent, 100)}%`;
+    }
+  }
+});

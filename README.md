@@ -1,338 +1,229 @@
-# 🎬 FFmpeg Converter Pro - Electron
+# FFmpeg Video Converter
 
-**Professional video converter with auto FFmpeg installation** - Built from the ground up with modern UI/UX
+A cross-platform desktop application for batch video conversion with a modern graphical interface. Built with Electron and fluent-ffmpeg, this tool provides an easy way to convert, compress, and optimize video files without command-line knowledge.
 
-## ✨ Features
+## Features
 
-### 🎯 Core Features
-- ✅ **Auto FFmpeg Install** - No manual setup required!
-- ✅ **Modern UI** - Beautiful, intuitive interface
-- ✅ **Batch Processing** - Convert multiple files
-- ✅ **Real-time Progress** - See exactly what's happening
-- ✅ **Error Handling** - Comprehensive error catching and logging
+### Core Functionality
+- Batch Processing: Convert multiple video files simultaneously with queue management
+- Custom Presets: Save and reuse your favorite encoding settings for different use cases
+- Real-time Progress: Live progress bars and statistics for each file being converted
+- Flexible Input: Select entire folders or individual files for conversion
+- Auto-replace Option: Automatically replace original files with converted versions
+- Smart Filename Cleaning: Removes quality tags, brackets, and unwanted metadata from filenames
 
-### 🎥 Video Processing
-- **Formats**: MP4, MKV, WebM, AVI
-- **Codecs**: H.264, H.265, VP9
-- **Quality**: CRF 0-51 control
-- **Resolution**: Up to 4K support
-- **Presets**: Ultrafast to Veryslow
+### Video Encoding
+- Multiple Codecs: H.264 (x264), H.265 (x265/HEVC), and VP9 support
+- Quality Control: Adjustable CRF values from 0-51 for precise quality/size balance
+- Resolution Scaling: Automatic downscaling to target resolution while preserving aspect ratio
+- Encoding Speed Presets: Nine speed options from ultrafast to veryslow
+- Built-in Presets: Optimized settings for TV shows, movies, high quality, and small file sizes
 
-### 🔊 Audio Processing
-- **Codecs**: AAC, Opus, MP3, Copy
-- **Bitrate**: 64-320 kbps
-- **Multi-track**: Keep all audio tracks
+### Audio Processing
+- Multiple Audio Codecs: AAC, Opus, MP3, or passthrough (copy original)
+- Bitrate Control: Adjustable audio bitrate from 64-320 kbps
+- Multi-track Support: Preserves all audio tracks from source files
 
-### 🌍 Track Selection (3 Modes)
-1. **Keep All** - Preserve everything
-2. **Language Filter** - Filter by codes (eng, jpn, spa, etc.)
-3. **Custom Selection** - Pick specific tracks with FFprobe
+### Subtitle Support
+- Automatic Passthrough: All subtitle tracks are copied without re-encoding
+- Format Preservation: Maintains original subtitle formats and languages
 
-### 💾 Post-Processing
-- **Filename Cleaning** - Remove quality tags
-- **Auto-Replace** - Replace originals (with warning)
-- **Recursive Mode** - Scan subdirectories
+### User Interface
+- Modern Dark Theme: Easy on the eyes with a professional appearance
+- Two-column Layout: Settings on left, file list on right for efficient workflow
+- Organized Settings: Grouped by preset management, video, audio, and post-processing
+- Live Statistics: Real-time counters for total, successful, and failed conversions
 
-### 🎨 Preset System
-- Built-in presets (TV, Movies, Quality, Small)
-- Save custom presets
-- One-click loading
+### FFmpeg Integration
+- Automatic Detection: Checks for FFmpeg installation on startup
+- One-click Installation: Integrated installer for Windows (winget), macOS (Homebrew), and Linux (apt/snap)
+- Cross-platform Support: Works on Windows 10+, macOS 10.13+, and modern Linux distributions
 
-## 🚀 Quick Start
+## Installation
 
-### Installation
+### From Release (Recommended)
 
+Download the latest release for your platform from the Releases page:
+
+Windows
+- FFmpeg-Video-Converter-x.x.x-win-x64.exe - Full installer with start menu shortcuts
+- FFmpeg-Video-Converter-x.x.x-Portable.exe - Portable version, no installation required
+- FFmpeg-Video-Converter-x.x.x-win-x64.zip - Manual extraction archive
+
+macOS
+- FFmpeg-Video-Converter-x.x.x-mac-x64.dmg - Intel Macs
+- FFmpeg-Video-Converter-x.x.x-mac-arm64.dmg - Apple Silicon (M1/M2/M3)
+- Universal builds support both architectures
+
+Linux
+- FFmpeg-Video-Converter-x.x.x-x86_64.AppImage - Universal format, run anywhere
+- FFmpeg-Video-Converter-x.x.x-amd64.deb - Debian/Ubuntu/Mint package
+- FFmpeg-Video-Converter-x.x.x-x86_64.rpm - Fedora/RHEL/CentOS package
+
+### From Source
+
+Requirements:
+- Node.js 18 or higher
+- npm 8 or higher
 ```bash
-# Clone or download the project
-cd ffmpeg-converter-electron
+# Clone the repository
+git clone https://github.com/yourusername/ffmpeg-converter-gui.git
+cd ffmpeg-converter-gui
 
-# Install dependencies (this auto-downloads FFmpeg!)
+# Install dependencies
 npm install
 
-# Run the app
+# Run the application
 npm start
 ```
 
-**That's it!** FFmpeg is automatically downloaded and configured!
+## Usage
 
-## 📦 Building
+### First Launch
 
-Create installers for your platform:
-
-```bash
-# Windows
-npm run build:win
-
-# Mac
-npm run build:mac
-
-# Linux
-npm run build:linux
-
-# All platforms
-npm run build
-```
-
-Output will be in the `dist/` folder.
-
-## 🎯 How to Use
+1. Install FFmpeg: If FFmpeg is not detected, a banner will appear with an "Install FFmpeg Automatically" button
+   - Windows: Uses winget package manager
+   - macOS: Uses Homebrew (must be installed separately)
+   - Linux: Uses apt or snap
+   
+2. Manual Installation: If automatic installation fails, download FFmpeg from ffmpeg.org and add it to your system PATH
 
 ### Basic Workflow
-1. **Select Files**
-   - Click "📁 Folder" to scan a directory
-   - Or "📄 Files" to pick individual files
-   - Enable "Recursive" to scan subdirectories
 
-2. **Choose Settings**
-   - Use a **Quick Preset** for common tasks
-   - Or customize in the **Video/Audio/Tracks** tabs
-   - Save your own presets for reuse
+1. Select Files: Click "Folder" to convert all videos in a directory, or "Files" to select specific videos
+2. Choose Settings: 
+   - Use a built-in preset (TV Shows, Movies, High Quality, Small Size)
+   - Or customize video codec, quality (CRF), resolution, audio settings, and encoding speed
+3. Save Custom Presets: Enter a name and click the save button to reuse settings later
+4. Configure Post-Processing: Check "Auto-replace original files" to automatically delete originals after successful conversion
+5. Start Conversion: Click "Convert" and monitor real-time progress
+6. Review Results: Converted files are in the `converted` subfolder (unless auto-replace is enabled)
 
-3. **Convert**
-   - Click "🎬 Start Conversion"
-   - Monitor progress in real-time
-   - Check the log for details
+### Settings Explained
 
-4. **Find Output**
-   - Converted files are in `converted/` subfolder
-   - Or same location if "Auto-replace" enabled
+Video Settings
+- Resolution Height: Target vertical resolution in pixels (e.g., 720, 1080, 2160)
+- Quality (CRF): Constant Rate Factor - lower = better quality, larger files (18-28 recommended)
+- Preset: Encoding speed - slower = better compression but longer processing time
+- Codec: H.264 (best compatibility), H.265 (better compression), VP9 (open source)
 
-### Presets Guide
+Audio Settings
+- Codec: AAC (best compatibility), Opus (best quality/size), MP3 (universal), Copy (no re-encode)
+- Bitrate: Audio quality in kbps - 128-192 recommended for most content
 
-**📺 TV Shows**
-- 720p resolution
-- Fast encoding
-- CRF 28 (good quality, small size)
-- Perfect for: TV series, anime
+Post-Processing
+- Auto-replace: Deletes original files and moves converted files to original location (use with caution)
 
-**🎬 Movies**
-- 1080p resolution
-- Slow encoding (better compression)
-- CRF 23 (excellent quality)
-- Perfect for: Movies, high-quality content
+### Recommended Settings
 
-**💎 High Quality**
-- 1080p resolution
-- Slower encoding
-- CRF 18 (near-lossless)
-- Perfect for: Archiving, masters
+TV Shows (720p, balanced)
+- Resolution: 720p
+- CRF: 28
+- Preset: slow
+- Codec: H.264
+- Audio: AAC 192kbps
 
-**💾 Small Size**
-- 720p resolution
-- H.265 codec (50% smaller)
-- CRF 30
-- Perfect for: Storage-limited devices
+Movies (1080p, high quality)
+- Resolution: 1080p
+- CRF: 23
+- Preset: slow
+- Codec: H.264
+- Audio: AAC 192kbps
 
-### Track Selection Modes
+Archival (maximum quality)
+- Resolution: 1080p or original
+- CRF: 18
+- Preset: slower or veryslow
+- Codec: H.264 or H.265
+- Audio: AAC 256kbps or copy
 
-**🌍 Keep All Tracks (Default)**
-```
-No configuration needed
-Preserves all audio and subtitle tracks
-```
+Small Files (maximum compression)
+- Resolution: 720p
+- CRF: 30
+- Preset: medium
+- Codec: H.265
+- Audio: AAC 128kbps
 
-**🌐 Filter by Language**
-```
-Audio Languages: eng,jpn
-Subtitle Languages: eng
-✓ Keep first audio if no match
+## Building
 
-This will:
-- Keep English and Japanese audio
-- Keep only English subtitles
-- Fallback to first audio if no match
-```
+### Prerequisites
+- Node.js 18+
+- npm 8+
 
-**✋ Custom Selection**
-```
-1. Select a file in the list
-2. Click "🔍 Analyze Selected File"
-3. Check/uncheck specific tracks
-4. Perfect for removing commentary
-```
-
-## 🌍 Language Codes
-
-| Code | Language | Code | Language |
-|------|----------|------|----------|
-| eng | English | jpn | Japanese |
-| spa | Spanish | kor | Korean |
-| fre | French | chi | Chinese |
-| ger | German | rus | Russian |
-| ita | Italian | ara | Arabic |
-| por | Portuguese | hin | Hindi |
-
-## 💡 Common Workflows
-
-### Remove Japanese Audio
-```
-1. Tracks tab → Filter by Language
-2. Audio: eng
-3. Subtitles: eng
-4. ✓ Keep first audio if no match
-```
-
-### Process Anime Folder
-```
-1. Select folder
-2. ✓ Recursive mode
-3. Preset → TV Shows
-4. Tracks → Language Filter: eng
-5. Convert
-```
-
-### Remove All Subtitles
-```
-Tracks → Language Filter
-Audio: eng
-Subtitles: (leave empty)
-```
-
-### Custom Track Removal
-```
-1. Tracks → Custom Selection
-2. Analyze file
-3. Uncheck unwanted tracks (commentary, etc.)
-4. Convert
-```
-
-## 🐛 Troubleshooting
-
-### FFmpeg Not Installing
-If auto-install fails:
+### Build Commands
 ```bash
-# Clear node_modules and reinstall
-rm -rf node_modules
+# Install dependencies
 npm install
+
+# Build for all platforms (requires macOS for macOS builds)
+npm run dist
+
+# Build for specific platform
+npm run dist-win    # Windows (NSIS, Portable, ZIP)
+npm run dist-mac    # macOS (DMG for Intel and Apple Silicon)
+npm run dist-linux  # Linux (AppImage, DEB, RPM)
+
+# Development build (no packaging)
+npm run pack
 ```
 
-### Conversion Fails
-1. Check the log panel for error details
-2. Try simpler settings first
-3. Ensure input file is valid (test in VLC)
-4. Check disk space
+### Build Output
 
-### Slow Conversion
-- Use faster preset (medium, fast, veryfast)
-- Lower resolution
-- Use H.264 instead of H.265
+Builds are created in the `dist` folder:
+- Windows: .exe installer, portable .exe, and .zip archive
+- macOS: .dmg disk images for x64 and arm64
+- Linux: .AppImage, .deb, and .rpm packages
 
-### App Won't Start
+### Testing Locally
 ```bash
-# Clear electron cache
-npm cache clean --force
-rm -rf node_modules
-npm install
-```
-
-## 📊 Performance Guide
-
-### Encoding Speed
-- **Ultrafast**: 10x realtime (large files)
-- **Fast**: 5x realtime (balanced)
-- **Medium**: 3x realtime (good quality)
-- **Slow**: 1-2x realtime (better compression) ⭐
-- **Veryslow**: 0.5-1x realtime (best compression)
-
-### Quality (CRF)
-- **0-17**: Nearly lossless (huge files)
-- **18-23**: Excellent quality (recommended) ⭐
-- **24-28**: Good quality (smaller files)
-- **29-35**: Acceptable quality (small files)
-- **36+**: Poor quality (avoid)
-
-### File Size Savings
-Typical savings with CRF 23-28:
-- Remove extra audio tracks: 15-30%
-- Remove subtitles: 2-5%
-- 1080p → 720p: 40-60%
-- H.264 → H.265: 30-50% (slower encoding)
-
-## 🔧 Development
-
-### Project Structure
-```
-ffmpeg-converter-electron/
-├── src/
-│   ├── main.js          # Main process
-│   ├── preload.js       # Security bridge
-│   ├── renderer.js      # UI logic
-│   └── index.html       # Interface
-├── package.json         # Config & deps
-└── README.md           # This file
-```
-
-### Tech Stack
-- **Electron 28** - Cross-platform framework
-- **@ffmpeg-installer/ffmpeg** - Auto FFmpeg
-- **fluent-ffmpeg** - FFmpeg wrapper
-- **Tailwind CSS** - Modern styling
-
-### Adding Features
-Edit the respective files:
-- **UI Changes**: `src/index.html`
-- **UI Logic**: `src/renderer.js`
-- **FFmpeg Operations**: `src/main.js`
-
-## 🆚 Why Electron?
-
-This **complete rewrite** fixes all the issues:
-
-### Old App Problems → Solutions
-- ❌ "Unknown error" → ✅ Comprehensive error handling
-- ❌ Manual FFmpeg install → ✅ Auto-installation
-- ❌ Poor UI → ✅ Modern, beautiful interface
-- ❌ Confusing workflow → ✅ Intuitive tabs
-- ❌ No track selection → ✅ 3 powerful modes
-- ❌ No presets → ✅ Built-in + custom presets
-
-### vs Python App
-| Feature | Electron | Python |
-|---------|----------|--------|
-| **FFmpeg** | Auto-install | Manual install |
-| **UI** | Modern web tech | Basic tkinter |
-| **Installers** | electron-builder | Manual |
-| **Updates** | Auto-updater | Manual |
-| **Cross-platform** | ✓ Easy | ✓ Requires testing |
-
-## 📄 License
-
-MIT License - Use freely!
-
-## 🎉 What's New
-
-This is a **complete ground-up rebuild** featuring:
-
-✨ **New Features**
-- Auto FFmpeg installation
-- Modern gradient UI
-- Real-time progress tracking
-- Comprehensive logging
-- Better error messages
-- Preset system
-- Custom track selection with FFprobe
-- Improved file scanning
-
-🐛 **Bugs Fixed**
-- "Unknown error" completely resolved
-- Proper async/await handling
-- Better IPC communication
-- Track mapping actually works
-- FFmpeg output properly captured
-
-🎨 **UI/UX Improvements**
-- Beautiful gradient design
-- Tabbed interface
-- Quick-action buttons
-- Visual feedback everywhere
-- Color-coded logs
-- Progress indicators
-
-## 🚀 Get Started
-
-```bash
-npm install
 npm start
 ```
 
-That's it! Start converting! 🎬✨
+### Debugging
+
+Enable Electron DevTools by uncommenting in main.js:
+```javascript
+mainWindow.webContents.openDevTools();
+```
+
+## Troubleshooting
+
+FFmpeg not detected
+- Verify FFmpeg is installed: Run `ffmpeg -version` in terminal/command prompt
+- Check PATH: Ensure FFmpeg directory is in your system PATH
+- Restart application after manual installation
+
+Conversion fails
+- Check file format is supported
+- Ensure sufficient disk space
+- Verify source file is not corrupted (try playing in VLC)
+
+Slow conversion speed
+- Use faster preset (medium, fast, veryfast)
+- Lower target resolution
+- Check CPU usage (encoding is CPU-intensive)
+
+Auto-replace doesn't work
+- Ensure you have write permissions in source directory
+- Check if antivirus is blocking file operations
+
+## Contributing
+
+Contributions are welcome! Please:
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Submit a pull request
+
+## License
+
+MIT License - see LICENSE file for details
+
+## Credits
+
+Built with:
+- Electron - Cross-platform desktop framework
+- fluent-ffmpeg - FFmpeg wrapper for Node.js
+- electron-builder - Package and build tool
+
+FFmpeg is a trademark of Fabrice Bellard, originator of the FFmpeg project.
