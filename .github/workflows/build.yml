@@ -81,9 +81,9 @@ jobs:
       
       - name: Build application
         run: |
-          if [[ "$(uname)" == "Linux" ]]; then
+          if [ "$RUNNER_OS" == "Linux" ]; then
             npm run dist-linux
-          elif [[ "$(uname)" == "Darwin" ]]; then
+          elif [ "$RUNNER_OS" == "macOS" ]; then
             npm run dist-mac
           else
             npm run dist-win
