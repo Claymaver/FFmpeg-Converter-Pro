@@ -200,11 +200,10 @@ async function selectFolder() {
     return;
   }
   
-  const recursive = document.getElementById('recursive-mode').checked;
-  const folder = await window.api.selectFolder(recursive);
+  const folder = await window.api.selectFolder();
   if (folder) {
     currentFolder = folder;
-    videoFiles = await window.api.getVideoFiles(folder, recursive);
+    videoFiles = await window.api.getVideoFiles(folder);
     
     document.getElementById('totalFiles').textContent = videoFiles.length;
     document.getElementById('convertBtn').disabled = videoFiles.length === 0;
@@ -267,9 +266,7 @@ async function startConversion() {
     audioBitrate: parseInt(document.getElementById('audio').value),
     preset: document.getElementById('speed').value,
     codec: document.getElementById('codec').value,
-    audioCodec: document.getElementById('audio-codec').value,
-    container: document.getElementById('container').value,
-    cleanFilenames: document.getElementById('standardize-names').checked
+    audioCodec: document.getElementById('audio-codec').value
   };
   
   for (let i = 0; i < videoFiles.length; i++) {

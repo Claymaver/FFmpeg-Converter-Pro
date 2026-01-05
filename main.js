@@ -162,7 +162,7 @@ ipcMain.handle('check-ffmpeg', async () => {
 });
 
 // Select folder
-ipcMain.handle('select-folder', async (event, recursive) => {
+ipcMain.handle('select-folder', async () => {
   if (!ffmpegInstalled) {
     dialog.showMessageBox(mainWindow, {
       type: 'warning',
@@ -220,55 +220,38 @@ ipcMain.handle('get-file-info', async (event, filePaths) => {
       name: filename,
       path: filePath,
       size: sizeMB,
-      cleanName: filename // Will be cleaned during conversion based on settings
+      cleanName: cleanFileName(filename)
     };
   });
   
   return videoFiles;
 });
 
-// Get video files in folder (with recursive option)
-ipcMain.handle('get-video-files', async (event, folderPath, recursive) => {
+// Get video files in folder
+ipcMain.handle('get-video-files', async (event, folderPath) => {
   const extensions = ['.mp4', '.mkv', '.avi', '.mov', '.flv', '.wmv', '.webm', '.m4v', '.mpg', '.mpeg'];
+  const files = fs.readdirSync(folderPath);
   
-  function getFilesRecursive(dir) {
-    let results = [];
-    const list = fs.readdirSync(dir);
-    
-    list.forEach(file => {
-      const filePath = path.join(dir, file);
-      const stat = fs.statSync(filePath);
+  const videoFiles = files
+    .filter(file => extensions.includes(path.extname(file).toLowerCase()))
+    .map(file => {
+      const fullPath = path.join(folderPath, file);
+      const stats = fs.statSync(fullPath);
+      const sizeMB = (stats.size / (1024 * 1024)).toFixed(1);
       
-      if (stat.isDirectory() && recursive) {
-        results = results.concat(getFilesRecursive(filePath));
-      } else if (extensions.includes(path.extname(file).toLowerCase())) {
-        results.push(filePath);
-      }
+      return {
+        name: file,
+        path: fullPath,
+        size: sizeMB,
+        cleanName: cleanFileName(file)
+      };
     });
-    
-    return results;
-  }
-  
-  const filePaths = getFilesRecursive(folderPath);
-  
-  const videoFiles = filePaths.map(filePath => {
-    const stats = fs.statSync(filePath);
-    const sizeMB = (stats.size / (1024 * 1024)).toFixed(1);
-    const filename = path.basename(filePath);
-    
-    return {
-      name: filename,
-      path: filePath,
-      size: sizeMB,
-      cleanName: filename // Will be cleaned during conversion based on settings
-    };
-  });
   
   return videoFiles;
 });
 
 // Clean filename
-function cleanFileName(filename, extension = 'mkv') {
+function cleanFileName(filename) {
   let name = path.parse(filename).name;
   
   // Remove brackets
@@ -293,7 +276,7 @@ function cleanFileName(filename, extension = 'mkv') {
   // Trim spaces and dashes
   name = name.trim().replace(/\s*-\s*$/g, '').replace(/^-\s*/g, '');
   
-  return name + '.' + extension;
+  return name + '.mkv';
 }
 
 // Convert single file
@@ -302,19 +285,10 @@ ipcMain.handle('convert-file', async (event, fileInfo, settings) => {
   
   // Create output directory
   if (!fs.existsSync(outputDir)) {
-    fs.mkdirSync(outputDir, { recursive: true });
+    fs.mkdirSync(outputDir);
   }
   
-  // Determine output filename based on settings
-  let outputName;
-  if (settings.cleanFilenames) {
-    outputName = cleanFileName(fileInfo.name, settings.container || 'mkv');
-  } else {
-    const baseName = path.parse(fileInfo.name).name;
-    outputName = baseName + '.' + (settings.container || 'mkv');
-  }
-  
-  const outputPath = path.join(outputDir, outputName);
+  const outputPath = path.join(outputDir, fileInfo.cleanName);
   
   return new Promise((resolve, reject) => {
     let outputOptions = [
@@ -332,11 +306,6 @@ ipcMain.handle('convert-file', async (event, fileInfo, settings) => {
     } else {
       outputOptions.push(`-c:a ${settings.audioCodec}`);
       outputOptions.push(`-b:a ${settings.audioBitrate}k`);
-    }
-    
-    // Set output format/container
-    if (settings.container !== 'auto') {
-      outputOptions.push(`-f ${settings.container}`);
     }
     
     const command = ffmpeg(fileInfo.path)
