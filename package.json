@@ -7,7 +7,7 @@
     "start": "electron .",
     "dev": "electron . --dev",
 
-    "build:ci": "electron-builder --publish always --draft --config.extraMetadata.buildNumber=$GITHUB_RUN_NUMBER",
+    "build:ci": "electron-builder --publish always --config.extraMetadata.buildNumber=$GITHUB_RUN_NUMBER",
 
     "build": "electron-builder",
     "build:win": "electron-builder --win",
@@ -116,7 +116,8 @@
       {
         "provider": "github",
         "owner": "Claymaver",
-        "repo": "ffmpeg-Converter-GUI"
+        "repo": "FFmpeg-Converter-Pro",
+        "releaseType": "draft"
       }
     ]
   }
