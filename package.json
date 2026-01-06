@@ -1,34 +1,16 @@
 {
   "name": "ffmpeg-converter-pro",
   "version": "2.0.0",
-  "description": "Professional FFmpeg Video Converter with Auto-Installer",
+  "description": "Professional FFmpeg Video Converter",
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
     "dev": "electron . --dev",
-
-    "build:ci": "electron-builder --publish always --config.extraMetadata.buildNumber=$GITHUB_RUN_NUMBER",
-
     "build": "electron-builder",
-    "build:win": "electron-builder --win",
-    "build:mac": "electron-builder --mac",
-    "build:linux": "electron-builder --linux",
-
-    "dist": "electron-builder",
-    "dist-win": "electron-builder --win",
-    "dist-mac": "electron-builder --mac",
-    "dist-linux": "electron-builder --linux",
-
-    "pack": "electron-builder --dir",
-    "postinstall": "electron-builder install-app-deps"
+    "dist": "electron-builder"
   },
-  "keywords": [
-    "ffmpeg",
-    "video",
-    "converter",
-    "electron"
-  ],
-  "author": "Clay MacDonald",
+  "keywords": ["ffmpeg", "video", "converter", "electron"],
+  "author": "Clau MacDonald",
   "license": "MIT",
   "devDependencies": {
     "electron": "^28.0.0",
@@ -43,8 +25,7 @@
     "appId": "com.ffmpegconverter.app",
     "productName": "FFmpeg Converter Pro",
     "directories": {
-      "output": "dist",
-      "buildResources": "assets"
+      "output": "dist"
     },
     "files": [
       "src/**/*",
@@ -63,67 +44,19 @@
         "filter": ["**/*"]
       }
     ],
-    "compression": "store",
-    "asar": true,
-    "asarUnpack": [
-      "**/ffmpeg",
-      "**/ffprobe"
-    ],
     "win": {
-      "target": [
-        {
-          "target": "nsis",
-          "arch": ["x64"]
-        }
-      ],
-      "artifactName": "${productName}-${version}-${arch}.${ext}"
+      "target": ["nsis"],
+      "icon": "assets/icon.ico"
     },
     "mac": {
-      "target": [
-        {
-          "target": "dmg",
-          "arch": ["x64"]
-        }
-      ],
+      "target": ["dmg"],
       "category": "public.app-category.video",
-      "artifactName": "${productName}-${version}-${arch}.${ext}"
+      "icon": "assets/icon.icns"
     },
     "linux": {
-      "target": [
-        {
-          "target": "AppImage",
-          "arch": ["x64"]
-        }
-      ],
+      "target": ["AppImage"],
       "category": "AudioVideo",
-      "artifactName": "${productName}-${version}-${arch}.${ext}",
       "icon": "assets/icon.png"
-    },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true,
-      "shortcutName": "FFmpeg Converter Pro",
-      "installerIcon": "assets/icon.ico",
-      "uninstallerIcon": "assets/icon.ico",
-      "license": "LICENSE"
-    },
-    "dmg": {
-      "title": "${productName} ${version}",
-      "icon": "assets/icon.icns",
-      "contents": [
-        { "x": 130, "y": 220 },
-        { "x": 410, "y": 220, "type": "link", "path": "/Applications" }
-      ]
-    },
-    "publish": [
-      {
-        "provider": "github",
-        "owner": "Claymaver",
-        "repo": "FFmpeg-Converter-Pro",
-        "releaseType": "draft"
-      }
-    ]
+    }
   }
 }

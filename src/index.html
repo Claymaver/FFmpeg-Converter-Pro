@@ -9,36 +9,47 @@
     body {
       overflow: hidden;
       user-select: none;
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
     }
     
-    .tab-button {
-      transition: all 0.2s;
-    }
-    
-    .tab-button.active {
+    .gradient-bg {
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-    }
-    
-    .tab-button:not(.active):hover {
-      background-color: #374151;
     }
     
     .progress-bar {
       transition: width 0.3s ease;
     }
     
-    .file-item:hover {
+    .tab-button {
+      transition: all 0.2s;
+      cursor: pointer;
+      text-align: center;
+    }
+    
+    .tab-button.active {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border-bottom: 3px solid #764ba2;
+    }
+    
+    .tab-button:not(.active) {
+      border-bottom: 3px solid transparent;
+      background-color: #1f2937;
+    }
+    
+    .tab-button:not(.active):hover {
       background-color: #374151;
     }
     
-    .file-item.active {
-      background-color: #1f2937;
-      border-left: 4px solid #667eea;
+    .tab-content {
+      display: none;
     }
     
-    .gradient-bg {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    .tab-content.active {
+      display: block;
     }
     
     input[type="range"]::-webkit-slider-thumb {
@@ -48,17 +59,7 @@
     input[type="range"]::-moz-range-thumb {
       background: #667eea;
     }
-    
-    .log-entry {
-      font-family: 'Courier New', monospace;
-      font-size: 12px;
-    }
-    
-    .log-success { color: #10b981; }
-    .log-error { color: #ef4444; }
-    .log-info { color: #3b82f6; }
-    .log-warn { color: #f59e0b; }
-    
+
     ::-webkit-scrollbar {
       width: 8px;
       height: 8px;
@@ -76,328 +77,312 @@
     ::-webkit-scrollbar-thumb:hover {
       background: #6b7280;
     }
+
+    .file-item {
+      transition: background-color 0.2s;
+    }
+
+    .file-item:hover {
+      background-color: #374151;
+    }
   </style>
 </head>
-<body class="bg-gray-900 text-gray-100">
+<body class="bg-gray-900 text-white font-sans">
   
-  <!-- Main Container -->
-  <div class="flex h-screen">
+  <!-- Header -->
+  <div class="gradient-bg px-6 py-3 shadow-lg flex-shrink-0">
+    <div class="flex items-center justify-between">
+      <h1 class="text-xl font-bold">FFmpeg Converter Pro</h1>
+      <div class="flex gap-6 text-sm">
+        <div>Files: <span id="total-files" class="font-bold">0</span></div>
+        <div>Success: <span id="success-count" class="font-bold text-green-300">0</span></div>
+        <div>Failed: <span id="fail-count" class="font-bold text-red-300">0</span></div>
+        <div>Space Saved: <span id="space-saved" class="font-bold text-blue-300">0 MB</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Content Area -->
+  <div class="flex flex-1 min-h-0">
     
-    <!-- Left Sidebar - Settings -->
-    <div class="w-96 bg-gray-800 border-r border-gray-700 flex flex-col">
+    <!-- Left Panel - File List -->
+    <div class="flex-1 flex flex-col min-w-0">
       
-      <!-- Header -->
-      <div class="gradient-bg p-6 text-center">
-        <h1 class="text-2xl font-bold">🎬 FFmpeg Converter Pro</h1>
+      <!-- File Actions -->
+      <div class="p-3 bg-gray-800 border-b border-gray-700 flex-shrink-0">
+        <div class="flex gap-2">
+          <button id="folder-btn" class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded font-medium text-sm transition-colors">
+            📁 Add Folder
+          </button>
+          <button id="files-btn" class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded font-medium text-sm transition-colors">
+            📄 Add Files
+          </button>
+          <button id="clear-btn" class="px-4 py-2 bg-red-600 hover:bg-red-700 rounded font-medium text-sm transition-colors">
+            Clear All
+          </button>
+        </div>
       </div>
       
-      <!-- Tabs -->
-      <div class="flex border-b border-gray-700">
-        <button class="tab-button active flex-1 py-3 text-sm font-medium" data-tab="presets">
-          📋 Presets
+      <!-- File List Header -->
+      <div class="px-4 py-2 bg-gray-800 border-b border-gray-700 flex-shrink-0">
+        <div class="grid grid-cols-12 gap-2 text-xs font-semibold text-gray-400">
+          <div class="col-span-1 text-center">Status</div>
+          <div class="col-span-6">Filename</div>
+          <div class="col-span-2 text-right">Original Size</div>
+          <div class="col-span-2 text-right">New Size</div>
+          <div class="col-span-1 text-right">Saved</div>
+        </div>
+      </div>
+
+      <!-- File List Body -->
+      <div id="file-list" class="flex-1 overflow-y-auto p-2"></div>
+    </div>
+
+    <!-- Right Panel - Tabs + Settings -->
+    <div class="w-96 border-l border-gray-700 flex flex-col flex-shrink-0">
+      
+      <!-- Tabs Navigation -->
+      <div class="flex border-b border-gray-700 bg-gray-800 flex-shrink-0">
+        <button class="tab-button active flex-1 px-3 py-3 font-medium text-xs" data-tab="presets">
+          <div class="text-lg mb-1">🎨</div>
+          <div>Presets</div>
         </button>
-        <button class="tab-button flex-1 py-3 text-sm font-medium" data-tab="video">
-          🎥 Video
+        <button class="tab-button flex-1 px-3 py-3 font-medium text-xs" data-tab="video">
+          <div class="text-lg mb-1">🎬</div>
+          <div>Video</div>
         </button>
-        <button class="tab-button flex-1 py-3 text-sm font-medium" data-tab="audio">
-          🔊 Audio
+        <button class="tab-button flex-1 px-3 py-3 font-medium text-xs" data-tab="audio">
+          <div class="text-lg mb-1">🎵</div>
+          <div>Audio</div>
+        </button>
+        <button class="tab-button flex-1 px-3 py-3 font-medium text-xs" data-tab="post">
+          <div class="text-lg mb-1">⚙️</div>
+          <div>Post</div>
         </button>
       </div>
-      
-      <div class="flex border-b border-gray-700">
-        <button class="tab-button flex-1 py-3 text-sm font-medium" data-tab="tracks">
-          🌍 Tracks
-        </button>
-        <button class="tab-button flex-1 py-3 text-sm font-medium" data-tab="post">
-          ⚙️ Post
-        </button>
-      </div>
-      
-      <!-- Tab Content -->
-      <div class="flex-1 overflow-y-auto p-6">
+
+      <!-- Tab Content Area -->
+      <div class="flex-1 overflow-y-auto p-4 bg-gray-850 min-h-0">
         
         <!-- Presets Tab -->
-        <div id="tab-presets" class="tab-content">
-          <h3 class="text-sm font-bold mb-3 text-purple-400">QUICK PRESETS</h3>
-          <div class="space-y-2">
-            <button class="preset-btn w-full p-3 bg-gray-700 hover:bg-gray-600 rounded-lg text-left transition" data-preset="tv">
-              <div class="font-medium">📺 TV Shows</div>
-              <div class="text-xs text-gray-400">720p, Fast, CRF 28</div>
-            </button>
-            <button class="preset-btn w-full p-3 bg-gray-700 hover:bg-gray-600 rounded-lg text-left transition" data-preset="movie">
-              <div class="font-medium">🎬 Movies</div>
-              <div class="text-xs text-gray-400">1080p, Quality, CRF 23</div>
-            </button>
-            <button class="preset-btn w-full p-3 bg-gray-700 hover:bg-gray-600 rounded-lg text-left transition" data-preset="quality">
-              <div class="font-medium">💎 High Quality</div>
-              <div class="text-xs text-gray-400">1080p, Slower, CRF 18</div>
-            </button>
-            <button class="preset-btn w-full p-3 bg-gray-700 hover:bg-gray-600 rounded-lg text-left transition" data-preset="small">
-              <div class="font-medium">💾 Small Size</div>
-              <div class="text-xs text-gray-400">720p, H.265, CRF 30</div>
-            </button>
+        <div id="tab-presets" class="tab-content active space-y-4">
+          <div>
+            <h3 class="text-sm font-bold mb-2 text-gray-400">BUILT-IN PRESETS</h3>
+            <div class="space-y-2">
+              <button data-preset="tv" class="preset-btn w-full px-4 py-3 bg-gradient-to-br from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 rounded-lg font-medium transition-all text-left">
+                <div class="flex items-center gap-2">
+                  <span class="text-xl">📺</span>
+                  <div>
+                    <div class="font-bold">TV Shows</div>
+                    <div class="text-xs opacity-75">720p • CRF 28 • Fast</div>
+                  </div>
+                </div>
+              </button>
+              <button data-preset="movie" class="preset-btn w-full px-4 py-3 bg-gradient-to-br from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 rounded-lg font-medium transition-all text-left">
+                <div class="flex items-center gap-2">
+                  <span class="text-xl">🎬</span>
+                  <div>
+                    <div class="font-bold">Movies</div>
+                    <div class="text-xs opacity-75">1080p • CRF 23 • Slow</div>
+                  </div>
+                </div>
+              </button>
+              <button data-preset="quality" class="preset-btn w-full px-4 py-3 bg-gradient-to-br from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 rounded-lg font-medium transition-all text-left">
+                <div class="flex items-center gap-2">
+                  <span class="text-xl">⭐</span>
+                  <div>
+                    <div class="font-bold">High Quality</div>
+                    <div class="text-xs opacity-75">1080p • CRF 18 • Slower</div>
+                  </div>
+                </div>
+              </button>
+              <button data-preset="small" class="preset-btn w-full px-4 py-3 bg-gradient-to-br from-orange-600 to-orange-700 hover:from-orange-500 hover:to-orange-600 rounded-lg font-medium transition-all text-left">
+                <div class="flex items-center gap-2">
+                  <span class="text-xl">💾</span>
+                  <div>
+                    <div class="font-bold">Small Size</div>
+                    <div class="text-xs opacity-75">720p • CRF 30 • H.265</div>
+                  </div>
+                </div>
+              </button>
+            </div>
+          </div>
+
+          <div class="border-t border-gray-700 pt-4">
+            <h3 class="text-sm font-bold mb-2 text-gray-400">YOUR PRESETS</h3>
+            <div id="custom-preset-list" class="space-y-2 mb-3"></div>
+            
+            <div class="space-y-2">
+              <input type="text" id="preset-name" placeholder="Preset name..." class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm" />
+              <button id="save-preset" class="w-full px-4 py-2 bg-green-600 hover:bg-green-700 rounded font-medium text-sm transition-colors">
+                💾 Save Current Settings
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Video Tab -->
+        <div id="tab-video" class="tab-content space-y-3">
+          <div>
+            <label class="block text-sm font-medium mb-2">Container Format</label>
+            <select id="container" class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm">
+              <option value="mkv">MKV (Matroska)</option>
+              <option value="mp4">MP4</option>
+              <option value="webm">WebM</option>
+              <option value="avi">AVI</option>
+            </select>
           </div>
           
-          <h3 class="text-sm font-bold mb-3 mt-6 text-purple-400">CUSTOM PRESETS</h3>
-          <div class="flex gap-2 mb-3">
-            <input type="text" id="preset-name" placeholder="Preset name..." 
-              class="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded focus:border-purple-500 focus:outline-none">
-            <button id="save-preset" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded transition">
-              💾
-            </button>
+          <div>
+            <label class="block text-sm font-medium mb-2">Video Codec</label>
+            <select id="videoCodec" class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm">
+              <option value="libx264">H.264 (x264)</option>
+              <option value="libx265">H.265 (x265 / HEVC)</option>
+              <option value="libvpx-vp9">VP9 (WebM)</option>
+              <option value="copy">Copy (no re-encode)</option>
+            </select>
           </div>
-          <div id="custom-presets" class="space-y-1"></div>
-        </div>
-        
-        <!-- Video Tab -->
-        <div id="tab-video" class="tab-content hidden">
-          <div class="space-y-4">
-            <div>
-              <label class="block text-sm font-medium mb-2">Container Format</label>
-              <select id="container" class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded focus:border-purple-500 focus:outline-none">
-                <option value="mkv">MKV (Best compatibility)</option>
-                <option value="mp4">MP4 (Universal)</option>
-                <option value="webm">WebM (Web optimized)</option>
-                <option value="avi">AVI (Legacy)</option>
-              </select>
-            </div>
-            
-            <div>
-              <label class="block text-sm font-medium mb-2">Resolution Height</label>
-              <input type="number" id="resolution" value="1080" min="144" max="2160" 
-                class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded focus:border-purple-500 focus:outline-none">
-              <div class="flex gap-2 mt-2">
-                <button class="res-btn flex-1 px-2 py-1 text-xs bg-gray-700 hover:bg-gray-600 rounded" data-res="480">480p</button>
-                <button class="res-btn flex-1 px-2 py-1 text-xs bg-gray-700 hover:bg-gray-600 rounded" data-res="720">720p</button>
-                <button class="res-btn flex-1 px-2 py-1 text-xs bg-gray-700 hover:bg-gray-600 rounded" data-res="1080">1080p</button>
-                <button class="res-btn flex-1 px-2 py-1 text-xs bg-gray-700 hover:bg-gray-600 rounded" data-res="2160">4K</button>
-              </div>
-            </div>
-            
-            <div>
-              <label class="block text-sm font-medium mb-2">
-                Quality (CRF): <span id="crf-value" class="text-purple-400 font-bold">23</span>
-              </label>
-              <input type="range" id="crf" min="0" max="51" value="23" 
-                class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
-              <div class="flex justify-between text-xs text-gray-500 mt-1">
-                <span>Best (0)</span>
-                <span>Balanced (23)</span>
-                <span>Small (51)</span>
-              </div>
-            </div>
-            
-            <div>
-              <label class="block text-sm font-medium mb-2">Encoding Preset</label>
-              <select id="preset" class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded focus:border-purple-500 focus:outline-none">
-                <option value="ultrafast">Ultrafast</option>
-                <option value="superfast">Superfast</option>
-                <option value="veryfast">Very Fast</option>
-                <option value="faster">Faster</option>
-                <option value="fast">Fast</option>
-                <option value="medium">Medium</option>
-                <option value="slow" selected>Slow (Recommended)</option>
-                <option value="slower">Slower</option>
-                <option value="veryslow">Very Slow</option>
-              </select>
-            </div>
-            
-            <div>
-              <label class="block text-sm font-medium mb-2">Video Codec</label>
-              <select id="codec" class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded focus:border-purple-500 focus:outline-none">
-                <option value="libx264">H.264 (Universal)</option>
-                <option value="libx265">H.265 (Smaller files)</option>
-                <option value="libvpx-vp9">VP9 (Open source)</option>
-              </select>
+          
+          <div>
+            <label class="block text-sm font-medium mb-2">Resolution</label>
+            <select id="resolution" class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm mb-2">
+              <option value="original">Original (no resize)</option>
+              <option value="2160">4K (2160p)</option>
+              <option value="1440">2K (1440p)</option>
+              <option value="1080">1080p (Full HD)</option>
+              <option value="720">720p (HD)</option>
+              <option value="480">480p (SD)</option>
+            </select>
+            <div class="flex gap-2">
+              <button data-res="1080" class="res-btn flex-1 px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-xs transition-colors">1080p</button>
+              <button data-res="720" class="res-btn flex-1 px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-xs transition-colors">720p</button>
+              <button data-res="480" class="res-btn flex-1 px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-xs transition-colors">480p</button>
             </div>
           </div>
+          
+          <div>
+            <label class="block text-sm font-medium mb-2">Quality (CRF): <span id="crf-value" class="text-blue-400">23</span></label>
+            <input type="range" id="crf" min="0" max="51" value="23" class="w-full mb-1">
+            <div class="flex justify-between text-xs text-gray-500">
+              <span>Best</span>
+              <span>Balanced</span>
+              <span>Worst</span>
+            </div>
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium mb-2">Encoding Speed</label>
+            <select id="preset" class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm">
+              <option value="ultrafast">Ultrafast</option>
+              <option value="superfast">Superfast</option>
+              <option value="veryfast">Very Fast</option>
+              <option value="faster">Faster</option>
+              <option value="fast">Fast</option>
+              <option value="medium" selected>Medium</option>
+              <option value="slow">Slow</option>
+              <option value="slower">Slower</option>
+              <option value="veryslow">Very Slow</option>
+            </select>
+          </div>
         </div>
-        
+
         <!-- Audio Tab -->
-        <div id="tab-audio" class="tab-content hidden">
-          <div class="space-y-4">
-            <div>
-              <label class="block text-sm font-medium mb-2">Audio Codec</label>
-              <select id="audio-codec" class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded focus:border-purple-500 focus:outline-none">
-                <option value="aac">AAC (Best quality)</option>
-                <option value="libopus">Opus (Efficient)</option>
-                <option value="libmp3lame">MP3 (Compatible)</option>
-                <option value="copy">Copy (No re-encode)</option>
-              </select>
-            </div>
-            
-            <div>
-              <label class="block text-sm font-medium mb-2">Audio Bitrate (kbps)</label>
-              <input type="number" id="audio-bitrate" value="192" min="64" max="320" step="32"
-                class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded focus:border-purple-500 focus:outline-none">
-              <div class="flex gap-2 mt-2">
-                <button class="br-btn flex-1 px-2 py-1 text-xs bg-gray-700 hover:bg-gray-600 rounded" data-br="128">128</button>
-                <button class="br-btn flex-1 px-2 py-1 text-xs bg-gray-700 hover:bg-gray-600 rounded" data-br="192">192</button>
-                <button class="br-btn flex-1 px-2 py-1 text-xs bg-gray-700 hover:bg-gray-600 rounded" data-br="256">256</button>
-                <button class="br-btn flex-1 px-2 py-1 text-xs bg-gray-700 hover:bg-gray-600 rounded" data-br="320">320</button>
-              </div>
+        <div id="tab-audio" class="tab-content space-y-3">
+          <div>
+            <label class="block text-sm font-medium mb-2">Audio Codec</label>
+            <select id="audioCodec" class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm">
+              <option value="aac">AAC (Advanced Audio Coding)</option>
+              <option value="libopus">Opus (High Quality)</option>
+              <option value="libmp3lame">MP3</option>
+              <option value="copy">Copy (no re-encode)</option>
+            </select>
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium mb-2">Audio Bitrate</label>
+            <select id="audio-bitrate" class="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm mb-2">
+              <option value="64k">64 kbps</option>
+              <option value="96k">96 kbps</option>
+              <option value="128k">128 kbps</option>
+              <option value="192k" selected>192 kbps</option>
+              <option value="256k">256 kbps</option>
+              <option value="320k">320 kbps</option>
+            </select>
+            <div class="flex gap-2">
+              <button data-br="128k" class="br-btn flex-1 px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-xs transition-colors">128</button>
+              <button data-br="192k" class="br-btn flex-1 px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-xs transition-colors">192</button>
+              <button data-br="256k" class="br-btn flex-1 px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-xs transition-colors">256</button>
+              <button data-br="320k" class="br-btn flex-1 px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-xs transition-colors">320</button>
             </div>
           </div>
         </div>
-        
-        <!-- Tracks Tab -->
-        <div id="tab-tracks" class="tab-content hidden">
-          <div class="space-y-4">
+
+        <!-- Post-Processing Tab -->
+        <div id="tab-post" class="tab-content space-y-3">
+          <label class="flex items-center gap-3 cursor-pointer p-3 bg-gray-800 rounded hover:bg-gray-750 transition-colors">
+            <input type="checkbox" id="clean-filenames" class="w-4 h-4">
             <div>
-              <label class="block text-sm font-medium mb-2">Track Selection Mode</label>
-              <select id="track-mode" class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded focus:border-purple-500 focus:outline-none">
-                <option value="all">🌍 Keep all tracks</option>
-                <option value="language">🌐 Filter by language</option>
-                <option value="custom">✋ Custom selection</option>
-              </select>
+              <div class="font-medium">Clean filenames</div>
+              <div class="text-xs text-gray-400">Remove quality tags, brackets, and extra spaces</div>
             </div>
-            
-            <!-- Language Mode -->
-            <div id="language-settings" class="hidden space-y-3">
-              <div>
-                <label class="block text-sm font-medium mb-2">Audio Languages</label>
-                <input type="text" id="audio-languages" value="eng" placeholder="eng,jpn,spa"
-                  class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded focus:border-purple-500 focus:outline-none">
-                <p class="text-xs text-gray-500 mt-1">Comma-separated codes</p>
-              </div>
-              
-              <div>
-                <label class="block text-sm font-medium mb-2">Subtitle Languages</label>
-                <input type="text" id="subtitle-languages" value="eng" placeholder="eng,spa (empty = remove all)"
-                  class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded focus:border-purple-500 focus:outline-none">
-                <p class="text-xs text-gray-500 mt-1">Empty to remove all subs</p>
-              </div>
-              
-              <label class="flex items-center">
-                <input type="checkbox" id="keep-first-audio" checked class="mr-2">
-                <span class="text-sm">Keep first audio if no match</span>
-              </label>
-              
-              <div class="p-3 bg-gray-700 rounded text-xs">
-                <div class="font-medium mb-1">Language Codes:</div>
-                <div class="text-gray-400">eng=English, jpn=Japanese, spa=Spanish, fre=French, ger=German, kor=Korean, chi=Chinese, rus=Russian</div>
-              </div>
+          </label>
+          
+          <label class="flex items-center gap-3 cursor-pointer p-3 bg-gray-800 rounded hover:bg-gray-750 transition-colors">
+            <input type="checkbox" id="output-subfolder" checked class="w-4 h-4">
+            <div>
+              <div class="font-medium">Output to subfolder</div>
+              <div class="text-xs text-gray-400">Save converted files in "converted" folder</div>
             </div>
-            
-            <!-- Custom Mode -->
-            <div id="custom-settings" class="hidden space-y-3">
-              <button id="analyze-btn" class="w-full px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded transition">
-                🔍 Analyze Selected File
-              </button>
-              
-              <div id="track-list" class="space-y-2 max-h-96 overflow-y-auto">
-                <p class="text-sm text-gray-500 text-center py-8">Select a file and click Analyze</p>
-              </div>
+          </label>
+          
+          <label class="flex items-center gap-3 cursor-pointer p-3 bg-gray-800 rounded hover:bg-gray-750 transition-colors border-2 border-red-900">
+            <input type="checkbox" id="replace-original" class="w-4 h-4">
+            <div>
+              <div class="font-medium text-red-400">⚠️ Replace original files</div>
+              <div class="text-xs text-gray-400">WARNING: This will delete your original files!</div>
             </div>
-          </div>
+          </label>
         </div>
-        
-        <!-- Post Tab -->
-        <div id="tab-post" class="tab-content hidden">
-          <div class="space-y-4">
-            <label class="flex items-start">
-              <input type="checkbox" id="auto-replace" class="mr-3 mt-1">
-              <div>
-                <div class="font-medium">⚠️ Auto-replace originals</div>
-                <div class="text-xs text-red-400 mt-1">WARNING: Deletes original files!</div>
-              </div>
-            </label>
-            
-            <label class="flex items-start">
-              <input type="checkbox" id="clean-filenames" checked class="mr-3 mt-1">
-              <div>
-                <div class="font-medium">📝 Clean filenames</div>
-                <div class="text-xs text-gray-400 mt-1">Remove quality tags & brackets</div>
-              </div>
-            </label>
-            
-            <label class="flex items-start">
-              <input type="checkbox" id="recursive" class="mr-3 mt-1">
-              <div>
-                <div class="font-medium">📁 Recursive mode</div>
-                <div class="text-xs text-gray-400 mt-1">Scan subdirectories</div>
-              </div>
-            </label>
-          </div>
-        </div>
-        
+
       </div>
+
+      <!-- Bottom Section - Controls and Logs -->
+      <div class="border-t border-gray-700 bg-gray-800 flex-shrink-0">
+        <!-- Convert Button -->
+        <div class="p-3 flex gap-2">
+          <button id="convert-btn" class="flex-1 gradient-bg px-6 py-3 rounded-lg font-bold hover:opacity-90 transition-opacity">
+            ▶️ Start
+          </button>
+          <button id="stop-btn" disabled class="px-6 py-3 bg-red-600 hover:bg-red-700 rounded-lg font-bold disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+            ⏹️ Stop
+          </button>
+        </div>
+        
+        <!-- Progress Bar -->
+        <div class="px-3 pb-2">
+          <div class="flex justify-between text-xs mb-1">
+            <span class="text-gray-400">Progress</span>
+            <span id="progress-text" class="font-mono">0%</span>
+          </div>
+          <div class="w-full bg-gray-700 rounded-full h-2 overflow-hidden">
+            <div id="progress-bar" class="gradient-bg h-full progress-bar" style="width: 0%"></div>
+          </div>
+        </div>
+        
+        <!-- Log Container -->
+        <div class="px-3 pb-3">
+          <div class="flex justify-between items-center mb-1">
+            <span class="text-xs text-gray-400 font-medium">Activity Log</span>
+            <button id="clear-log-btn" class="text-xs text-gray-500 hover:text-gray-300 transition-colors">Clear</button>
+          </div>
+          <div id="log-container" class="bg-gray-900 rounded p-2 h-20 overflow-y-auto text-xs font-mono"></div>
+        </div>
+      </div>
+
     </div>
-    
-    <!-- Right Panel - Files & Conversion -->
-    <div class="flex-1 flex flex-col">
-      
-      <!-- Stats Bar -->
-      <div class="bg-gray-800 border-b border-gray-700 px-6 py-4 flex items-center justify-between">
-        <div class="flex items-center gap-6">
-          <div>
-            <span class="text-sm text-gray-400">Total:</span>
-            <span id="total-count" class="text-lg font-bold ml-2">0</span>
-          </div>
-          <div>
-            <span class="text-sm text-gray-400">✓</span>
-            <span id="success-count" class="text-lg font-bold ml-2 text-green-500">0</span>
-          </div>
-          <div>
-            <span class="text-sm text-gray-400">✗</span>
-            <span id="fail-count" class="text-lg font-bold ml-2 text-red-500">0</span>
-          </div>
-        </div>
-        
-        <div class="flex-1 max-w-md mx-6">
-          <div class="bg-gray-700 rounded-full h-3 overflow-hidden">
-            <div id="progress-bar" class="progress-bar h-full gradient-bg" style="width: 0%"></div>
-          </div>
-          <div id="progress-text" class="text-xs text-center text-gray-400 mt-1">Ready</div>
-        </div>
-        
-        <div class="flex gap-3">
-          <button id="folder-btn" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded transition">
-            📁 Folder
-          </button>
-          <button id="files-btn" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded transition">
-            📄 Files
-          </button>
-          <button id="clear-btn" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded transition">
-            🗑️ Clear
-          </button>
-        </div>
-      </div>
-      
-      <!-- File List -->
-      <div class="flex-1 p-6 overflow-hidden flex flex-col">
-        <h3 class="text-sm font-bold mb-3 text-gray-400">FILE QUEUE</h3>
-        <div id="file-list" class="flex-1 bg-gray-800 rounded-lg overflow-y-auto border border-gray-700">
-          <div class="p-8 text-center text-gray-500">
-            <div class="text-4xl mb-3">📁</div>
-            <div>No files selected</div>
-            <div class="text-sm mt-2">Click "Folder" or "Files" to start</div>
-          </div>
-        </div>
-      </div>
-      
-      <!-- Log Panel -->
-      <div class="p-6 pt-0">
-        <h3 class="text-sm font-bold mb-3 text-gray-400">CONVERSION LOG</h3>
-        <div id="log-panel" class="bg-gray-800 rounded-lg p-4 h-48 overflow-y-auto border border-gray-700 font-mono text-xs">
-          <div class="text-gray-500">Ready to convert...</div>
-        </div>
-      </div>
-      
-      <!-- Action Buttons -->
-      <div class="bg-gray-800 border-t border-gray-700 px-6 py-4 flex justify-end gap-3">
-        <button id="stop-btn" class="px-6 py-3 bg-red-600 hover:bg-red-700 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed" disabled>
-          ⏹️ Stop
-        </button>
-        <button id="convert-btn" class="px-6 py-3 gradient-bg hover:opacity-90 rounded-lg font-medium transition">
-          🎬 Start Conversion
-        </button>
-      </div>
-      
-    </div>
-    
+
   </div>
-  
+
   <script src="renderer.js"></script>
 </body>
 </html>
