@@ -7,7 +7,6 @@ FFmpeg Converter Pro is an easy-to-use, Electron-based video converter with auto
 - **Batch Processing**: Convert entire folders or select files.
 - **Quick Presets**: TV Shows, Movies, High Quality, Small Size.
 - **Modern UI**: Simple, real-time progress tracking.
-- **Auto-Install**: FFmpeg installs automatically on first run.
 
 ## Getting Started:
 
