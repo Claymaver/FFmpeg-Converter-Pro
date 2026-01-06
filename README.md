@@ -11,8 +11,6 @@ FFmpeg Converter Pro is an easy-to-use, Electron-based video converter with auto
 
 ## Getting Started:
 
-You can find the latest releases [here](https://github.com/Claymaver/FFmpeg-Converter-Pro/releases)
-
 ### Requirements:
 Node.js 16+
 Windows 10/11, macOS 10.13+, or Linux
