@@ -4,86 +4,265 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>FFmpeg Converter Pro</title>
-  <script src="https://cdn.tailwindcss.com"></script>
   <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
     body {
       overflow: hidden;
       user-select: none;
-      margin: 0;
       height: 100vh;
       display: flex;
       flex-direction: column;
+      background-color: #0a0e12;
+      color: #e0e8f0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 15px;
     }
-    
+
+    /* Layout */
+    .flex { display: flex; }
+    .flex-col { flex-direction: column; }
+    .flex-1 { flex: 1; }
+    .flex-shrink-0 { flex-shrink: 0; }
+    .min-h-0 { min-height: 0; }
+    .min-w-0 { min-width: 0; }
+    .items-center { align-items: center; }
+    .justify-between { justify-content: space-between; }
+    .gap-2 { gap: 8px; }
+    .gap-3 { gap: 12px; }
+    .gap-6 { gap: 24px; }
+    .w-full { width: 100%; }
+    .w-96 { width: 384px; }
+    .w-4 { width: 16px; }
+    .h-2 { height: 8px; }
+    .h-20 { height: 80px; }
+    .space-y-2 > * + * { margin-top: 8px; }
+    .space-y-3 > * + * { margin-top: 12px; }
+    .space-y-4 > * + * { margin-top: 16px; }
+
+    /* Padding & Margin */
+    .p-2 { padding: 8px; }
+    .p-3 { padding: 12px; }
+    .p-4 { padding: 16px; }
+    .px-2 { padding-left: 8px; padding-right: 8px; }
+    .px-3 { padding-left: 12px; padding-right: 12px; }
+    .px-4 { padding-left: 16px; padding-right: 16px; }
+    .px-6 { padding-left: 24px; padding-right: 24px; }
+    .py-1 { padding-top: 4px; padding-bottom: 4px; }
+    .py-2 { padding-top: 8px; padding-bottom: 8px; }
+    .py-3 { padding-top: 12px; padding-bottom: 12px; }
+    .pb-2 { padding-bottom: 8px; }
+    .pb-3 { padding-bottom: 12px; }
+    .pt-4 { padding-top: 16px; }
+    .mb-1 { margin-bottom: 4px; }
+    .mb-2 { margin-bottom: 8px; }
+    .mb-3 { margin-bottom: 12px; }
+
+    /* Grid */
+    .grid { display: grid; }
+    .grid-cols-12 { grid-template-columns: repeat(12, minmax(0, 1fr)); }
+    .col-span-1 { grid-column: span 1; }
+    .col-span-2 { grid-column: span 2; }
+    .col-span-6 { grid-column: span 6; }
+    .text-center { text-align: center; }
+    .text-right { text-align: right; }
+    .text-left { text-align: left; }
+
+    /* Colors & Backgrounds */
+    .bg-gray-900 { background-color: #0a0e12; }
+    .bg-gray-850 { background-color: #0f1419; }
+    .bg-gray-800 { background-color: #151b23; }
+    .bg-gray-750 { background-color: #1a202a; }
+    .bg-gray-700 { background-color: #242e3c; }
+    .bg-red-600 { background-color: #dc2626; }
+    .bg-red-700 { background-color: #b91c1c; }
+    .bg-blue-600 { background-color: #10b981; }
+    .bg-blue-700 { background-color: #059669; }
+    .bg-green-600 { background-color: #10b981; }
+    .bg-green-700 { background-color: #059669; }
+    .bg-purple-600 { background-color: #10b981; }
+    .bg-purple-700 { background-color: #059669; }
+    .bg-orange-600 { background-color: #10b981; }
+    .bg-orange-700 { background-color: #059669; }
+    .text-gray-400 { color: #c0d0e0; }
+    .text-gray-500 { color: #a8bace; }
+    .text-gray-300 { color: #e0e8f0; }
+    .text-green-300 { color: #6ee7b7; }
+    .text-red-300 { color: #fca5a5; }
+    .text-blue-300 { color: #7ee8c2; }
+    .text-red-400 { color: #f87171; }
+
+    /* Borders */
+    .border { border: 1px solid; }
+    .border-b { border-bottom: 1px solid; }
+    .border-l { border-left: 1px solid; }
+    .border-t { border-top: 1px solid; }
+    .border-2 { border: 2px solid; }
+    .border-gray-700 { border-color: #242e3c; }
+    .border-red-900 { border-color: #7f1d1d; }
+
+    /* Text */
+    .text-xs { font-size: 13px; }
+    .text-sm { font-size: 14px; }
+    .text-xl { font-size: 20px; }
+    .text-lg { font-size: 18px; }
+    .font-sans { font-family: sans-serif; }
+    .font-medium { font-weight: 600; }
+    .font-bold { font-weight: 700; }
+    .font-mono { font-family: monospace; }
+    .opacity-50 { opacity: 0.5; }
+    .opacity-75 { opacity: 0.75; }
+    .opacity-90 { opacity: 0.9; }
+
+    /* Utilities */
+    .rounded { border-radius: 6px; }
+    .rounded-lg { border-radius: 8px; }
+    .rounded-full { border-radius: 9999px; }
+    .shadow-lg { box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3); }
+    .cursor-pointer { cursor: pointer; }
+    .cursor-not-allowed { cursor: not-allowed; }
+    .overflow-hidden { overflow: hidden; }
+    .overflow-y-auto { overflow-y: auto; }
+    .transition-colors { transition: background-color 0.2s, color 0.2s; }
+    .transition-opacity { transition: opacity 0.2s; }
+    .transition-all { transition: all 0.2s; }
+
+    /* Hover States */
+    .hover\:bg-blue-700:hover { background-color: #059669; }
+    .hover\:bg-red-700:hover { background-color: #b91c1c; }
+    .hover\:bg-green-700:hover { background-color: #059669; }
+    .hover\:bg-gray-600:hover { background-color: #2a3646; }
+    .hover\:bg-gray-750:hover { background-color: #1a202a; }
+    .hover\:bg-purple-500:hover { background-color: #10b981; }
+    .hover\:bg-orange-500:hover { background-color: #10b981; }
+    .hover\:opacity-90:hover { opacity: 0.9; }
+    .hover\:text-gray-300:hover { color: #e0e8f0; }
+
+    /* Disabled */
+    .disabled\:opacity-50:disabled { opacity: 0.5; }
+    .disabled\:cursor-not-allowed:disabled { cursor: not-allowed; }
+
+    /* Primary Color - Mint Green */
     .gradient-bg {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
     }
-    
+
+    /* Form Elements */
+    select, input[type="text"], input[type="range"] {
+      font-size: 14px;
+      color: #e0e8f0;
+    }
+
+    input[type="text"], select {
+      background-color: #151b23;
+      border: 1px solid #242e3c;
+      padding: 8px 12px;
+      border-radius: 6px;
+    }
+
+    input[type="text"]:focus, select:focus {
+      outline: none;
+      border-color: #10b981;
+      box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.1);
+    }
+
+    input[type="checkbox"] {
+      cursor: pointer;
+      accent-color: #10b981;
+    }
+
+    /* Progress Bar */
     .progress-bar {
+      background: linear-gradient(90deg, #10b981 0%, #059669 100%);
       transition: width 0.3s ease;
     }
-    
+
+    /* Tabs */
     .tab-button {
       transition: all 0.2s;
       cursor: pointer;
       text-align: center;
-    }
-    
-    .tab-button.active {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      border-bottom: 3px solid #764ba2;
-    }
-    
-    .tab-button:not(.active) {
+      background-color: #1a202a;
       border-bottom: 3px solid transparent;
-      background-color: #1f2937;
+      color: #c0d0e0;
+      font-weight: 600;
     }
-    
+
+    .tab-button.active {
+      background-color: #10b981;
+      color: #0a0e12;
+      border-bottom: 3px solid #10b981;
+    }
+
     .tab-button:not(.active):hover {
-      background-color: #374151;
+      background-color: #242e3c;
     }
-    
+
     .tab-content {
       display: none;
     }
-    
+
     .tab-content.active {
       display: block;
     }
-    
-    input[type="range"]::-webkit-slider-thumb {
-      background: #667eea;
-    }
-    
-    input[type="range"]::-moz-range-thumb {
-      background: #667eea;
+
+    /* Range Slider */
+    input[type="range"] {
+      width: 100%;
+      accent-color: #10b981;
     }
 
+    input[type="range"]::-webkit-slider-thumb {
+      background: #10b981;
+      cursor: pointer;
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      background: #10b981;
+      cursor: pointer;
+    }
+
+    /* Scrollbar */
     ::-webkit-scrollbar {
       width: 8px;
       height: 8px;
     }
-    
+
     ::-webkit-scrollbar-track {
-      background: #1f2937;
-    }
-    
-    ::-webkit-scrollbar-thumb {
-      background: #4b5563;
-      border-radius: 4px;
-    }
-    
-    ::-webkit-scrollbar-thumb:hover {
-      background: #6b7280;
+      background: #0f1419;
     }
 
+    ::-webkit-scrollbar-thumb {
+      background: #242e3c;
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #2a3646;
+    }
+
+    /* File Item */
     .file-item {
       transition: background-color 0.2s;
     }
 
     .file-item:hover {
-      background-color: #374151;
+      background-color: #1a202a;
+    }
+
+    /* Preset Buttons */
+    .preset-btn {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: #0a0e12;
+      font-weight: 600;
+    }
+
+    .preset-btn:hover {
+      background: linear-gradient(135deg, #13d894 0%, #0aa876 100%);
     }
   </style>
 </head>
@@ -144,19 +323,19 @@
       <!-- Tabs Navigation -->
       <div class="flex border-b border-gray-700 bg-gray-800 flex-shrink-0">
         <button class="tab-button active flex-1 px-3 py-3 font-medium text-xs" data-tab="presets">
-          <div class="text-lg mb-1">🎨</div>
+          <div class="text-lg mb-1"></div>
           <div>Presets</div>
         </button>
         <button class="tab-button flex-1 px-3 py-3 font-medium text-xs" data-tab="video">
-          <div class="text-lg mb-1">🎬</div>
+          <div class="text-lg mb-1"></div>
           <div>Video</div>
         </button>
         <button class="tab-button flex-1 px-3 py-3 font-medium text-xs" data-tab="audio">
-          <div class="text-lg mb-1">🎵</div>
+          <div class="text-lg mb-1"></div>
           <div>Audio</div>
         </button>
         <button class="tab-button flex-1 px-3 py-3 font-medium text-xs" data-tab="post">
-          <div class="text-lg mb-1">⚙️</div>
+          <div class="text-lg mb-1"></div>
           <div>Post</div>
         </button>
       </div>
@@ -171,7 +350,7 @@
             <div class="space-y-2">
               <button data-preset="tv" class="preset-btn w-full px-4 py-3 bg-gradient-to-br from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 rounded-lg font-medium transition-all text-left">
                 <div class="flex items-center gap-2">
-                  <span class="text-xl">📺</span>
+                  <span class="text-xl"></span>
                   <div>
                     <div class="font-bold">TV Shows</div>
                     <div class="text-xs opacity-75">720p • CRF 28 • Fast</div>
@@ -180,7 +359,7 @@
               </button>
               <button data-preset="movie" class="preset-btn w-full px-4 py-3 bg-gradient-to-br from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 rounded-lg font-medium transition-all text-left">
                 <div class="flex items-center gap-2">
-                  <span class="text-xl">🎬</span>
+                  <span class="text-xl"></span>
                   <div>
                     <div class="font-bold">Movies</div>
                     <div class="text-xs opacity-75">1080p • CRF 23 • Slow</div>
@@ -189,7 +368,7 @@
               </button>
               <button data-preset="quality" class="preset-btn w-full px-4 py-3 bg-gradient-to-br from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 rounded-lg font-medium transition-all text-left">
                 <div class="flex items-center gap-2">
-                  <span class="text-xl">⭐</span>
+                  <span class="text-xl"></span>
                   <div>
                     <div class="font-bold">High Quality</div>
                     <div class="text-xs opacity-75">1080p • CRF 18 • Slower</div>
@@ -198,7 +377,7 @@
               </button>
               <button data-preset="small" class="preset-btn w-full px-4 py-3 bg-gradient-to-br from-orange-600 to-orange-700 hover:from-orange-500 hover:to-orange-600 rounded-lg font-medium transition-all text-left">
                 <div class="flex items-center gap-2">
-                  <span class="text-xl">💾</span>
+                  <span class="text-xl"></span>
                   <div>
                     <div class="font-bold">Small Size</div>
                     <div class="text-xs opacity-75">720p • CRF 30 • H.265</div>
