@@ -78,12 +78,10 @@ jobs:
           target_commitish: main
           draft: true
           files: |
-            release/win-x64.exe
-            release/win-x64 Portable.exe
-            release/linux-amd64.deb
-            release/linux-x86_64.AppImage
-            release/linux-x86_64.rpm
-            release/mac-arm64.dmg
-            release/mac-x64.dmg
+            release/*.exe
+            release/*.dmg
+            release/*.deb
+            release/*.AppImage
+            release/*.rpm
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
