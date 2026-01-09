@@ -16,7 +16,7 @@
     "dist": "electron-builder"
   },
   "keywords": ["ffmpeg", "video", "converter", "electron"],
-  "author": "Your Name",
+  "author": "Clay MacDonald",
   "license": "MIT",
   "devDependencies": {
     "electron": "^28.0.0",
@@ -68,19 +68,7 @@
     },
     "dmg": {
       "title": "FFmpeg Converter Pro",
-      "icon": "build/icon.icns",
-      "contents": [
-        {
-          "x": 130,
-          "y": 220
-        },
-        {
-          "x": 410,
-          "y": 220,
-          "type": "link",
-          "path": "/Applications"
-        }
-      ]
+      "icon": "build/icon.icns"
     },
     "linux": {
       "target": [
@@ -90,7 +78,7 @@
       ],
       "category": "AudioVideo",
       "icon": "build/icon.png",
-      "maintainer": "your-email@example.com"
+      "maintainer": "Claymaver@proton.me"
     },
     "deb": {
       "depends": ["ffmpeg"]
