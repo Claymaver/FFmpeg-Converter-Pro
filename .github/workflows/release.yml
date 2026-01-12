@@ -45,9 +45,13 @@ jobs:
             - **Portable**: No installation required, run from USB drive
             
             ### macOS
-            - **Universal DMG**: Works on both Intel and Apple Silicon Macs (Recommended)
-            - **Intel DMG**: Intel Macs only
-            - **Apple Silicon DMG**: M1/M2/M3 Macs only
+            - **Intel DMG**: For Intel-based Macs
+            - **Apple Silicon DMG**: For M1/M2/M3/M4 Macs
+            
+            💡 **Tip**: Not sure which Mac you have? 
+            - Click Apple menu → About This Mac
+            - If you see "Apple M1/M2/M3" → Download Apple Silicon
+            - If you see "Intel Core i5/i7/i9" → Download Intel
             
             ### Linux
             - **AppImage**: Works on all distributions (Recommended)
@@ -62,7 +66,7 @@ jobs:
             3. Follow the installation wizard
             
             ### macOS
-            1. Download the .dmg file
+            1. Download the appropriate DMG file for your Mac
             2. Open the DMG
             3. Drag the app to Applications
             4. First run: Right-click → Open
@@ -98,12 +102,13 @@ jobs:
             
             ## 📝 Checksums
             
-            See assets below for SHA256 checksums.
+            SHA256 checksums are provided for each platform to verify download integrity.
+            See `checksums-*.txt` files in assets below.
           draft: false
           prerelease: ${{ inputs.prerelease }}
   
   build-and-upload:
-    name: Build ${{ matrix.os }}
+    name: Build ${{ matrix.os }} ${{ matrix.arch }}
     needs: create-release
     runs-on: ${{ matrix.os }}
     
@@ -113,14 +118,22 @@ jobs:
         include:
           - os: windows-latest
             platform: windows
+            arch: x64
             build_command: npm run build:win-all
           
           - os: macos-latest
             platform: macos
-            build_command: npm run build:mac-universal
+            arch: x64
+            build_command: npm run build:mac-intel
+          
+          - os: macos-latest
+            platform: macos
+            arch: arm64
+            build_command: npm run build:mac-arm
           
           - os: ubuntu-latest
             platform: linux
+            arch: x64
             build_command: npm run build:linux-all
     
     steps:
@@ -210,42 +223,6 @@ jobs:
           asset_name: checksums-windows.txt
           asset_content_type: text/plain
       
-      - name: Upload macOS Universal DMG to Release
-        if: matrix.platform == 'macos'
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: dist/FFmpeg Converter Pro-${{ inputs.version }}-universal.dmg
-          asset_name: FFmpeg-Converter-Pro-${{ inputs.version }}-universal.dmg
-          asset_content_type: application/octet-stream
-        continue-on-error: true
-      
-      - name: Upload macOS x64 DMG to Release
-        if: matrix.platform == 'macos'
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: dist/FFmpeg Converter Pro-${{ inputs.version }}-x64.dmg
-          asset_name: FFmpeg-Converter-Pro-${{ inputs.version }}-x64.dmg
-          asset_content_type: application/octet-stream
-        continue-on-error: true
-      
-      - name: Upload macOS arm64 DMG to Release
-        if: matrix.platform == 'macos'
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: dist/FFmpeg Converter Pro-${{ inputs.version }}-arm64.dmg
-          asset_name: FFmpeg-Converter-Pro-${{ inputs.version }}-arm64.dmg
-          asset_content_type: application/octet-stream
-        continue-on-error: true
-      
       - name: Upload macOS Checksums to Release
         if: matrix.platform == 'macos'
         uses: actions/upload-release-asset@v1
@@ -254,8 +231,32 @@ jobs:
         with:
           upload_url: ${{ needs.create-release.outputs.upload_url }}
           asset_path: checksums-macos.txt
-          asset_name: checksums-macos.txt
+          asset_name: checksums-macos-${{ matrix.arch }}.txt
           asset_content_type: text/plain
+      
+      - name: Upload macOS x64 DMG to Release
+        if: matrix.platform == 'macos' && matrix.arch == 'x64'
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: dist/FFmpeg Converter Pro-${{ inputs.version }}-x64.dmg
+          asset_name: FFmpeg-Converter-Pro-${{ inputs.version }}-Intel.dmg
+          asset_content_type: application/octet-stream
+        continue-on-error: true
+      
+      - name: Upload macOS arm64 DMG to Release
+        if: matrix.platform == 'macos' && matrix.arch == 'arm64'
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: dist/FFmpeg Converter Pro-${{ inputs.version }}-arm64.dmg
+          asset_name: FFmpeg-Converter-Pro-${{ inputs.version }}-AppleSilicon.dmg
+          asset_content_type: application/octet-stream
+        continue-on-error: true
       
       - name: Upload Linux AppImage to Release
         if: matrix.platform == 'linux'

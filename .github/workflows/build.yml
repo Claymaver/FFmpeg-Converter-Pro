@@ -29,8 +29,13 @@ jobs:
           # macOS builds
           - os: macos-latest
             platform: macos
-            arch: universal
-            build_command: npm run build:mac-universal
+            arch: x64
+            build_command: npm run build:mac-intel
+          
+          - os: macos-latest
+            platform: macos
+            arch: arm64
+            build_command: npm run build:mac-arm
           
           # Linux builds
           - os: ubuntu-latest
@@ -97,38 +102,38 @@ jobs:
           if-no-files-found: warn
       
       # macOS artifacts
-      - name: Upload macOS Universal DMG
-        if: matrix.platform == 'macos'
-        uses: actions/upload-artifact@v4
-        with:
-          name: macos-universal-dmg
-          path: dist/*-universal.dmg
-          retention-days: 30
-          if-no-files-found: warn
-      
       - name: Upload macOS x64 DMG
-        if: matrix.platform == 'macos'
+        if: matrix.platform == 'macos' && matrix.arch == 'x64'
         uses: actions/upload-artifact@v4
         with:
           name: macos-x64-dmg
-          path: dist/*-x64.dmg
+          path: dist/*.dmg
+          retention-days: 30
+          if-no-files-found: warn
+      
+      - name: Upload macOS x64 ZIP
+        if: matrix.platform == 'macos' && matrix.arch == 'x64'
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-x64-zip
+          path: dist/*.zip
           retention-days: 30
           if-no-files-found: warn
       
       - name: Upload macOS arm64 DMG
-        if: matrix.platform == 'macos'
+        if: matrix.platform == 'macos' && matrix.arch == 'arm64'
         uses: actions/upload-artifact@v4
         with:
           name: macos-arm64-dmg
-          path: dist/*-arm64.dmg
+          path: dist/*.dmg
           retention-days: 30
           if-no-files-found: warn
       
-      - name: Upload macOS ZIP
-        if: matrix.platform == 'macos'
+      - name: Upload macOS arm64 ZIP
+        if: matrix.platform == 'macos' && matrix.arch == 'arm64'
         uses: actions/upload-artifact@v4
         with:
-          name: macos-zip
+          name: macos-arm64-zip
           path: dist/*.zip
           retention-days: 30
           if-no-files-found: warn
