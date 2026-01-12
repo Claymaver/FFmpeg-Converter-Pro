@@ -308,6 +308,25 @@
       overflow-x: auto;
     }
 
+    .editor-toolbar {
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-color);
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+    }
+
+    .editor-toolbar .btn {
+      font-size: 13px;
+      padding: 6px 12px;
+      height: 32px;
+    }
+
+    .editor-toolbar .btn .icon {
+      width: 16px;
+      height: 16px;
+    }
+
     .tab {
       height: 35px;
       padding: 0 12px;
@@ -1268,6 +1287,29 @@
         </div>
       </div>
 
+      <!-- Editor Toolbar -->
+      <div class="editor-toolbar" id="editor-toolbar" style="display: none;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <button onclick="startConversion()" id="convert-btn-toolbar" class="btn btn-primary" disabled>
+            <svg class="icon" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polygon points="10 8 16 12 10 16 10 8"></polygon>
+            </svg>
+            Start Conversion
+          </button>
+          <button onclick="clearFiles()" class="btn btn-secondary">
+            <svg class="icon" viewBox="0 0 24 24">
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"></path>
+            </svg>
+            Clear All
+          </button>
+          <div style="margin-left: auto; display: flex; align-items: center; gap: 12px; color: var(--text-secondary); font-size: 12px;">
+            <span id="file-count-display">0 files selected</span>
+          </div>
+        </div>
+      </div>
+
       <!-- Editor Content -->
       <div class="editor-content" id="editor-content">
         
@@ -1831,6 +1873,9 @@
 
     function updateFileList() {
       const container = document.getElementById('sidebar-content');
+      const toolbar = document.getElementById('editor-toolbar');
+      const welcomeScreen = document.getElementById('welcome-screen');
+      const fileCountDisplay = document.getElementById('file-count-display');
       
       if (selectedFiles.length === 0) {
         container.innerHTML = `
@@ -1842,7 +1887,19 @@
             <div class="empty-subtitle">Add files to begin conversion</div>
           </div>
         `;
+        
+        // Hide toolbar, show welcome screen
+        if (toolbar) toolbar.style.display = 'none';
+        if (welcomeScreen) welcomeScreen.style.display = 'flex';
+        
         return;
+      }
+
+      // Show toolbar, hide welcome screen
+      if (toolbar) toolbar.style.display = 'flex';
+      if (welcomeScreen) welcomeScreen.style.display = 'none';
+      if (fileCountDisplay) {
+        fileCountDisplay.textContent = `${selectedFiles.length} file${selectedFiles.length === 1 ? '' : 's'} selected`;
       }
 
       container.innerHTML = selectedFiles.map((file, index) => {
@@ -2276,27 +2333,35 @@
 
     function updateConvertButton() {
       const btn = document.getElementById('convert-btn');
-      if (!btn) return;
+      const btnToolbar = document.getElementById('convert-btn-toolbar');
       
-      btn.disabled = selectedFiles.length === 0 || isConverting;
+      const buttons = [btn, btnToolbar].filter(b => b);
+      if (buttons.length === 0) return;
       
-      if (isConverting) {
-        btn.innerHTML = `
-          <svg class="icon" viewBox="0 0 24 24">
-            <circle cx="12" cy="12" r="10"></circle>
-            <path d="M12 6v6l4 2"></path>
-          </svg>
-          Converting...
-        `;
-      } else {
-        btn.innerHTML = `
-          <svg class="icon" viewBox="0 0 24 24">
-            <circle cx="12" cy="12" r="10"></circle>
-            <polygon points="10 8 16 12 10 16 10 8"></polygon>
-          </svg>
-          Start Conversion (${selectedFiles.length})
-        `;
-      }
+      const isDisabled = selectedFiles.length === 0 || isConverting;
+      
+      buttons.forEach(button => {
+        button.disabled = isDisabled;
+        
+        if (isConverting) {
+          button.innerHTML = `
+            <svg class="icon" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="10"></circle>
+              <path d="M12 6v6l4 2"></path>
+            </svg>
+            Converting...
+          `;
+        } else {
+          const count = selectedFiles.length > 0 ? ` (${selectedFiles.length})` : '';
+          button.innerHTML = `
+            <svg class="icon" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polygon points="10 8 16 12 10 16 10 8"></polygon>
+            </svg>
+            Start Conversion${count}
+          `;
+        }
+      });
     }
 
     window.startConversion = async function startConversion() {
