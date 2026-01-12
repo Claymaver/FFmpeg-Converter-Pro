@@ -19,25 +19,13 @@ A professional, easy-to-use desktop application for batch video conversion power
 - **FFmpeg Installer** - Install FFmpeg directly from the app
 - **Large Activity Log** - See detailed conversion logs
 
-## 💾 Download
-
-Download the latest version for your platform:
-
-- **Windows**: `FFmpeg-Converter-Pro-Setup-2.0.0.exe`
-- **macOS (Intel)**: `FFmpeg-Converter-Pro-2.0.0-x64.dmg`
-- **macOS (Apple Silicon)**: `FFmpeg-Converter-Pro-2.0.0-arm64.dmg`
-- **Linux (AppImage)**: `FFmpeg-Converter-Pro-2.0.0.AppImage`
-- **Linux (DEB)**: `ffmpeg-converter-pro_2.0.0_amd64.deb`
-- **Linux (RPM)**: `ffmpeg-converter-pro-2.0.0.x86_64.rpm`
-
 ## 🚀 Quick Start
 
-1. Download the installer for your platform
-2. Install the application
-3. Click "Install FFmpeg" if not already installed
-4. Add videos using "Add Folder" or "Add Files"
-5. Choose a preset or customize settings
-6. Click "Start Batch Conversion"
+1. Install the application
+2. Click "Install FFmpeg" if not already installed
+3. Add videos using "Add Folder" or "Add Files"
+4. Choose a preset or customize settings
+5. Click "Start Conversion"
 
 ## 📋 Requirements
 
