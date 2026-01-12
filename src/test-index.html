@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Minimal Test</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: Arial, sans-serif;
+      background: #1e1e1e;
+      color: #ffffff;
+    }
+    .test-box {
+      background: #2d2d30;
+      border: 2px solid #8fa876;
+      border-radius: 8px;
+      padding: 20px;
+      margin: 20px 0;
+    }
+    button {
+      background: #8fa876;
+      color: #1e1e1e;
+      border: none;
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      border-radius: 4px;
+      margin: 5px;
+    }
+    button:hover {
+      background: #a8c090;
+    }
+    .success { color: #9bce66; }
+    .error { color: #f48771; }
+    #log {
+      background: #0d0d0d;
+      padding: 10px;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 12px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+  </style>
+</head>
+<body>
+  <h1>🔍 FFmpeg Converter - Minimal Test</h1>
+  
+  <div class="test-box">
+    <h2>Step 1: Check if HTML loads</h2>
+    <p class="success">✅ If you can read this, HTML is loading!</p>
+  </div>
+
+  <div class="test-box">
+    <h2>Step 2: Check if JavaScript works</h2>
+    <button onclick="testJS()">Test JavaScript</button>
+    <p id="js-test">Click button to test</p>
+  </div>
+
+  <div class="test-box">
+    <h2>Step 3: Check if electronAPI loads</h2>
+    <button onclick="testAPI()">Test Electron API</button>
+    <p id="api-test">Click button to test</p>
+  </div>
+
+  <div class="test-box">
+    <h2>Step 4: Test File Dialog</h2>
+    <button onclick="testFileDialog()">Open File Dialog</button>
+    <p id="dialog-test">Click button to test</p>
+  </div>
+
+  <div class="test-box">
+    <h2>Step 5: Test Window Controls</h2>
+    <button onclick="testMinimize()">Minimize</button>
+    <button onclick="testMaximize()">Maximize</button>
+    <p id="window-test">Click buttons to test</p>
+  </div>
+
+  <div class="test-box">
+    <h2>Console Log</h2>
+    <div id="log"></div>
+  </div>
+
+  <script>
+    console.log('=== Minimal Test Page Loaded ===');
+    
+    function log(message, isError = false) {
+      const logDiv = document.getElementById('log');
+      const time = new Date().toLocaleTimeString();
+      const className = isError ? 'error' : 'success';
+      logDiv.innerHTML += `<div class="${className}">[${time}] ${message}</div>`;
+      logDiv.scrollTop = logDiv.scrollHeight;
+      console.log(message);
+    }
+
+    log('Page loaded successfully');
+
+    // Test 1: JavaScript
+    window.testJS = function() {
+      const el = document.getElementById('js-test');
+      el.innerHTML = '<span class="success">✅ JavaScript is working!</span>';
+      log('JavaScript test passed');
+    };
+
+    // Test 2: Electron API
+    window.testAPI = function() {
+      const el = document.getElementById('api-test');
+      
+      if (typeof window.electronAPI === 'undefined') {
+        el.innerHTML = '<span class="error">❌ electronAPI NOT available!</span>';
+        log('electronAPI NOT available - preload.js failed to load', true);
+        log('Check: 1) preload.js exists in same folder as main.js', true);
+        log('Check: 2) main.js has correct preload path', true);
+        return;
+      }
+      
+      el.innerHTML = '<span class="success">✅ electronAPI is available!</span>';
+      log('electronAPI available');
+      log('Available methods: ' + Object.keys(window.electronAPI).join(', '));
+    };
+
+    // Test 3: File Dialog
+    window.testFileDialog = async function() {
+      const el = document.getElementById('dialog-test');
+      
+      if (!window.electronAPI) {
+        el.innerHTML = '<span class="error">❌ electronAPI not available</span>';
+        return;
+      }
+      
+      try {
+        log('Opening file dialog...');
+        const files = await window.electronAPI.selectFiles();
+        
+        if (files && files.length > 0) {
+          el.innerHTML = `<span class="success">✅ Selected ${files.length} file(s)</span>`;
+          log(`Success! Selected: ${files[0]}`);
+        } else {
+          el.innerHTML = '<span>No files selected (cancelled?)</span>';
+          log('File dialog cancelled or no files selected');
+        }
+      } catch (error) {
+        el.innerHTML = `<span class="error">❌ Error: ${error.message}</span>`;
+        log('Error opening file dialog: ' + error.message, true);
+      }
+    };
+
+    // Test 4: Window Controls
+    window.testMinimize = async function() {
+      const el = document.getElementById('window-test');
+      
+      if (!window.electronAPI) {
+        el.innerHTML = '<span class="error">❌ electronAPI not available</span>';
+        return;
+      }
+      
+      try {
+        log('Minimizing window...');
+        await window.electronAPI.windowMinimize();
+        el.innerHTML = '<span class="success">✅ Window minimized!</span>';
+        log('Window minimize successful');
+      } catch (error) {
+        el.innerHTML = `<span class="error">❌ Error: ${error.message}</span>`;
+        log('Error minimizing: ' + error.message, true);
+      }
+    };
+
+    window.testMaximize = async function() {
+      const el = document.getElementById('window-test');
+      
+      if (!window.electronAPI) {
+        el.innerHTML = '<span class="error">❌ electronAPI not available</span>';
+        return;
+      }
+      
+      try {
+        log('Maximizing window...');
+        await window.electronAPI.windowMaximize();
+        el.innerHTML = '<span class="success">✅ Window maximized!</span>';
+        log('Window maximize successful');
+      } catch (error) {
+        el.innerHTML = `<span class="error">❌ Error: ${error.message}</span>`;
+        log('Error maximizing: ' + error.message, true);
+      }
+    };
+
+    // Auto-test on load
+    window.addEventListener('DOMContentLoaded', () => {
+      log('DOMContentLoaded event fired');
+      
+      // Auto-check API
+      setTimeout(() => {
+        if (window.electronAPI) {
+          log('✅ Auto-check: electronAPI is available');
+        } else {
+          log('❌ Auto-check: electronAPI NOT available', true);
+        }
+      }, 100);
+    });
+  </script>
+</body>
+</html>

@@ -3,499 +3,2385 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:;">
   <title>FFmpeg Converter Pro</title>
-  <script src="https://cdn.tailwindcss.com"></script>
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
     * {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
     }
 
+    :root {
+      /* Linux Mint Colors */
+      --mint-green: #8fa876;
+      --mint-green-light: #a8c090;
+      --mint-green-dark: #6d8c54;
+      --mint-accent: #9bce66;
+      
+      /* VS Code Style Colors */
+      --bg-primary: #1e1e1e;
+      --bg-secondary: #252526;
+      --bg-tertiary: #2d2d30;
+      --bg-active: #37373d;
+      
+      --border-color: #3e3e42;
+      --text-primary: #cccccc;
+      --text-secondary: #858585;
+      --text-bright: #ffffff;
+      
+      --activity-bar-width: 48px;
+      --sidebar-width: 280px;
+      --panel-height: 200px;
+      
+      --success: #9bce66;
+      --error: #f48771;
+      --warning: #dcdcaa;
+      --info: #75beff;
+    }
+
     body {
-      overflow: hidden;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: #121212;
-      color: #e0e0e0;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
       height: 100vh;
+      overflow: hidden;
       display: flex;
       flex-direction: column;
     }
 
-    .tab-button {
-      background: #1e1e1e;
+    /* Title Bar */
+    .title-bar {
+      height: 35px;
+      background: var(--bg-tertiary);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+      border-bottom: 1px solid var(--border-color);
+      -webkit-app-region: drag;  /* Make draggable */
+      user-select: none;
+    }
+
+    .title-bar-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .title-bar-icon {
+      width: 16px;
+      height: 16px;
+    }
+
+    .title-bar-title {
+      font-size: 13px;
+      color: var(--text-primary);
+    }
+
+    .title-bar-right {
+      display: flex;
+      gap: 4px;
+      -webkit-app-region: no-drag;
+    }
+
+    .title-bar-btn {
+      width: 46px;
+      height: 29px;
       border: none;
-      color: #888;
-      padding: 12px 24px;
+      background: transparent;
+      color: var(--text-primary);
       cursor: pointer;
-      transition: all 0.2s;
-      border-bottom: 3px solid transparent;
+      font-size: 11px;
+      transition: background 0.2s;
+      -webkit-app-region: no-drag;  /* Make buttons clickable */
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .title-bar-btn:hover {
+      background: var(--bg-active);
+    }
+
+    .title-bar-btn.close:hover {
+      background: #e81123;
+      color: white;
+    }
+
+    /* Main Container */
+    .main-container {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* Activity Bar (Left Edge) */
+    .activity-bar {
+      width: var(--activity-bar-width);
+      background: var(--bg-tertiary);
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 8px 0;
+    }
+
+    .activity-item {
+      width: 48px;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      position: relative;
+      color: var(--text-secondary);
+      transition: color 0.2s;
+      border: none;
+      background: transparent;
+    }
+
+    .activity-item:hover {
+      color: var(--text-primary);
+    }
+
+    .activity-item.active {
+      color: var(--text-bright);
+    }
+
+    .activity-item.active::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 8px;
+      bottom: 8px;
+      width: 2px;
+      background: var(--mint-accent);
+    }
+
+    .activity-icon {
+      width: 24px;
+      height: 24px;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: var(--sidebar-width);
+      background: var(--bg-secondary);
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .sidebar-header {
+      height: 35px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      border-bottom: 1px solid var(--border-color);
+      text-transform: uppercase;
+      font-size: 11px;
       font-weight: 600;
+      letter-spacing: 0.5px;
+      color: var(--text-primary);
     }
 
-    .tab-button:hover {
-      background: #252525;
-      color: #bbb;
+    .sidebar-actions {
+      display: flex;
+      gap: 4px;
     }
 
-    .tab-button.active {
-      background: #2a2a2a;
-      color: #fff;
-      border-bottom-color: #3b82f6;
-    }
-
-    .tab-content {
-      display: none;
-    }
-
-    .tab-content.active {
-      display: block;
-    }
-
-    .file-item {
-      background: #1e1e1e;
-      border: 1px solid #333;
-      border-radius: 6px;
-      padding: 12px;
-      margin-bottom: 8px;
+    .sidebar-btn {
+      width: 20px;
+      height: 20px;
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 3px;
       transition: all 0.2s;
     }
 
-    .file-item:hover {
-      border-color: #444;
-      background: #252525;
+    .sidebar-btn:hover {
+      background: var(--bg-active);
+      color: var(--text-primary);
     }
 
-    .progress-bar-bg {
-      background: #2a2a2a;
-      border-radius: 4px;
-      height: 8px;
-      overflow: hidden;
+    .sidebar-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+    }
+
+    /* File Tree */
+    .file-tree-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 8px;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: background 0.2s;
       position: relative;
     }
 
-    .progress-bar-fill {
-      background: linear-gradient(90deg, #3b82f6, #60a5fa);
+    .file-tree-item:hover {
+      background: var(--bg-active);
+    }
+
+    .file-tree-item.active {
+      background: var(--bg-active);
+    }
+
+    .file-tree-item.selected {
+      background: rgba(143, 168, 118, 0.2);
+    }
+
+    .file-tree-item.error {
+      color: var(--error);
+    }
+
+    .file-tree-item.success {
+      color: var(--success);
+    }
+
+    .file-icon {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+    }
+
+    .file-name {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .file-status {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .file-status.processing {
+      background: var(--mint-accent);
+      animation: pulse 1.5s infinite;
+    }
+
+    .file-status.success {
+      background: var(--success);
+    }
+
+    .file-status.error {
+      background: var(--error);
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    /* Editor Area */
+    .editor-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* Tab Bar */
+    .tab-bar {
+      height: 35px;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      overflow-x: auto;
+    }
+
+    .tab {
+      height: 35px;
+      padding: 0 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-right: 1px solid var(--border-color);
+      cursor: pointer;
+      font-size: 13px;
+      color: var(--text-secondary);
+      background: var(--bg-secondary);
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+
+    .tab:hover {
+      color: var(--text-primary);
+      background: var(--bg-active);
+    }
+
+    .tab.active {
+      color: var(--text-bright);
+      background: var(--bg-primary);
+      border-bottom: 1px solid var(--mint-accent);
+    }
+
+    .tab-icon {
+      width: 16px;
+      height: 16px;
+    }
+
+    .tab-close {
+      width: 16px;
+      height: 16px;
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 3px;
+      transition: all 0.2s;
+      opacity: 0;
+    }
+
+    .tab:hover .tab-close {
+      opacity: 1;
+    }
+
+    .tab-close:hover {
+      background: var(--bg-active);
+      color: var(--text-primary);
+    }
+
+    /* Editor Content */
+    .editor-content {
+      flex: 1;
+      background: var(--bg-primary);
+      overflow-y: auto;
+      padding: 20px;
+    }
+
+    /* Settings Panel */
+    .settings-section {
+      margin-bottom: 24px;
+    }
+
+    .settings-section-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-bright);
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .settings-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 16px;
+      margin-top: 16px;
+    }
+
+    .setting-item {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .setting-label {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    .setting-help {
+      font-size: 11px;
+      color: var(--text-secondary);
+      margin-top: 2px;
+    }
+
+    /* Form Controls */
+    input[type="text"],
+    input[type="number"],
+    select,
+    textarea {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      padding: 6px 10px;
+      border-radius: 3px;
+      font-size: 13px;
+      font-family: 'Inter', sans-serif;
+      transition: all 0.2s;
+    }
+
+    input[type="text"]:focus,
+    input[type="number"]:focus,
+    select:focus,
+    textarea:focus {
+      outline: none;
+      border-color: var(--mint-accent);
+      background: var(--bg-tertiary);
+    }
+
+    input[type="checkbox"] {
+      accent-color: var(--mint-accent);
+    }
+
+    /* Buttons */
+    .btn {
+      padding: 6px 14px;
+      border-radius: 3px;
+      font-weight: 500;
+      cursor: pointer;
+      border: 1px solid transparent;
+      font-size: 13px;
+      font-family: 'Inter', sans-serif;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-primary {
+      background: var(--mint-green);
+      color: var(--bg-primary);
+      border-color: var(--mint-green);
+    }
+
+    .btn-primary:hover {
+      background: var(--mint-green-light);
+      border-color: var(--mint-green-light);
+    }
+
+    .btn-secondary {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      border-color: var(--border-color);
+    }
+
+    .btn-secondary:hover {
+      background: var(--bg-active);
+    }
+
+    .btn-danger {
+      background: transparent;
+      color: var(--error);
+      border-color: var(--error);
+    }
+
+    .btn-danger:hover {
+      background: rgba(244, 135, 113, 0.1);
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* Bottom Panel */
+    .panel {
+      height: var(--panel-height);
+      background: var(--bg-secondary);
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      resize: vertical;
+      overflow: hidden;
+      min-height: 100px;
+      max-height: 500px;
+    }
+
+    .panel.collapsed {
+      height: 35px;
+      min-height: 35px;
+    }
+
+    .panel-header {
+      height: 35px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .panel-tabs {
+      display: flex;
+      gap: 16px;
+    }
+
+    .panel-tab {
+      font-size: 11px;
+      text-transform: uppercase;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      padding: 8px 0;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+    }
+
+    .panel-tab:hover {
+      color: var(--text-primary);
+    }
+
+    .panel-tab.active {
+      color: var(--text-bright);
+      border-bottom-color: var(--mint-accent);
+    }
+
+    .panel-actions {
+      display: flex;
+      gap: 4px;
+    }
+
+    .panel-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .log-entry {
+      margin-bottom: 4px;
+      display: flex;
+      gap: 8px;
+    }
+
+    .log-time {
+      color: var(--text-secondary);
+    }
+
+    .log-message {
+      color: var(--text-primary);
+    }
+
+    .log-message.success {
+      color: var(--success);
+    }
+
+    .log-message.error {
+      color: var(--error);
+    }
+
+    .log-message.warning {
+      color: var(--warning);
+    }
+
+    /* Problems Panel */
+    .problems-container {
+      padding: 0;
+    }
+
+    .problem-item {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border-color);
+      transition: background 0.2s;
+    }
+
+    .problem-item:hover {
+      background: var(--bg-active);
+    }
+
+    .problem-item.error {
+      border-left: 3px solid var(--error);
+    }
+
+    .problem-item.warning {
+      border-left: 3px solid var(--warning);
+    }
+
+    .problem-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+
+    .problem-severity {
+      font-size: 16px;
+      line-height: 1;
+    }
+
+    .problem-severity.error {
+      color: var(--error);
+    }
+
+    .problem-severity.warning {
+      color: var(--warning);
+    }
+
+    .problem-file {
+      font-weight: 500;
+      color: var(--text-primary);
+      font-size: 13px;
+    }
+
+    .problem-message {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+      line-height: 1.5;
+    }
+
+    .problem-solution {
+      font-size: 12px;
+      color: var(--info);
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+      background: rgba(117, 190, 255, 0.1);
+      padding: 6px 10px;
+      border-radius: 4px;
+      margin-top: 6px;
+    }
+
+    .problem-solution-icon {
+      margin-top: 2px;
+    }
+
+    .problems-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+      color: var(--text-secondary);
+      text-align: center;
+    }
+
+    .problems-empty-icon {
+      font-size: 48px;
+      margin-bottom: 12px;
+      opacity: 0.5;
+    }
+
+    .problems-empty-text {
+      font-size: 14px;
+    }
+
+    .problems-count {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--error);
+      color: white;
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: 10px;
+      margin-left: 6px;
+      min-width: 18px;
+    }
+
+    .problems-count.warning {
+      background: var(--warning);
+    }
+
+    /* Progress Bar */
+    .progress-bar {
+      height: 4px;
+      background: var(--bg-tertiary);
+      border-radius: 2px;
+      overflow: hidden;
+      margin-top: 4px;
+    }
+
+    .progress-fill {
       height: 100%;
-      transition: width 0.3s ease;
-      border-radius: 4px;
+      background: var(--mint-accent);
+      transition: width 0.3s;
       position: relative;
-      overflow: hidden;
     }
 
-    .progress-bar-fill::after {
+    .progress-fill::after {
       content: '';
       position: absolute;
       top: 0;
       left: 0;
       right: 0;
       bottom: 0;
-      background: linear-gradient(
-        90deg,
-        transparent,
-        rgba(255, 255, 255, 0.3),
-        transparent
-      );
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
       animation: shimmer 2s infinite;
     }
 
     @keyframes shimmer {
-      0% {
-        transform: translateX(-100%);
-      }
-      100% {
-        transform: translateX(100%);
-      }
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(100%); }
     }
 
-    .btn-primary {
-      background: linear-gradient(135deg, #3b82f6, #2563eb);
-      color: white;
-      font-weight: 600;
-      padding: 10px 20px;
-      border: none;
-      border-radius: 6px;
+    /* Status Bar */
+    .status-bar {
+      height: 22px;
+      background: var(--bg-tertiary);
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .status-left,
+    .status-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .status-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: color 0.2s;
     }
 
-    .btn-primary:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+    .status-item:hover {
+      color: var(--text-primary);
     }
 
-    .btn-secondary {
-      background: #2a2a2a;
-      color: #e0e0e0;
-      font-weight: 600;
-      padding: 10px 20px;
-      border: 1px solid #444;
-      border-radius: 6px;
-      cursor: pointer;
-      transition: all 0.2s;
+    .status-indicator {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
     }
 
-    .btn-secondary:hover {
-      background: #333;
-      border-color: #555;
+    .status-indicator.online {
+      background: var(--success);
+      box-shadow: 0 0 4px var(--success);
     }
 
-    .btn-success {
-      background: linear-gradient(135deg, #10b981, #059669);
-      color: white;
+    .status-indicator.offline {
+      background: var(--error);
     }
 
-    .btn-danger {
-      background: linear-gradient(135deg, #ef4444, #dc2626);
-      color: white;
-    }
-
-    .input-field {
-      background: #1e1e1e;
-      border: 1px solid #444;
-      color: #e0e0e0;
-      padding: 8px 12px;
-      border-radius: 6px;
-      transition: all 0.2s;
-    }
-
-    .input-field:focus {
-      outline: none;
-      border-color: #3b82f6;
-      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-    }
-
-    .status-badge {
-      display: inline-block;
-      padding: 4px 12px;
-      border-radius: 12px;
-      font-size: 11px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-
-    .status-pending { background: #374151; color: #9ca3af; }
-    .status-processing { 
-      background: #1e40af; 
-      color: #93c5fd;
-      animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-    }
-    .status-success { background: #065f46; color: #6ee7b7; }
-    .status-error { background: #991b1b; color: #fca5a5; }
-
-    @keyframes pulse {
-      0%, 100% {
-        opacity: 1;
-      }
-      50% {
-        opacity: 0.7;
-      }
-    }
-
+    /* Scrollbar */
     ::-webkit-scrollbar {
-      width: 8px;
-      height: 8px;
+      width: 10px;
+      height: 10px;
     }
 
     ::-webkit-scrollbar-track {
-      background: #1e1e1e;
+      background: var(--bg-primary);
     }
 
     ::-webkit-scrollbar-thumb {
-      background: #444;
-      border-radius: 4px;
+      background: var(--bg-active);
+      border-radius: 5px;
     }
 
     ::-webkit-scrollbar-thumb:hover {
-      background: #555;
+      background: #4e4e4e;
     }
 
-    .log-line {
-      padding: 6px 12px;
-      border-left: 3px solid transparent;
-      font-family: 'Courier New', monospace;
+    /* Icons */
+    .icon {
+      width: 16px;
+      height: 16px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    /* Collapsible */
+    .collapsible-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      user-select: none;
+      padding: 8px 0;
+      transition: color 0.2s;
+    }
+
+    .collapsible-header:hover {
+      color: var(--text-bright);
+    }
+
+    .collapsible-icon {
+      width: 12px;
+      height: 12px;
+      transition: transform 0.2s;
+    }
+
+    .collapsible-header.open .collapsible-icon {
+      transform: rotate(90deg);
+    }
+
+    .collapsible-content {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease;
+    }
+
+    .collapsible-content.open {
+      max-height: 2000px;
+    }
+
+    /* Empty State */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 20px;
+      color: var(--text-secondary);
+      text-align: center;
+    }
+
+    .empty-icon {
+      width: 64px;
+      height: 64px;
+      opacity: 0.3;
+      margin-bottom: 16px;
+    }
+
+    .empty-title {
+      font-size: 14px;
+      font-weight: 500;
+      margin-bottom: 8px;
+      color: var(--text-primary);
+    }
+
+    .empty-subtitle {
       font-size: 12px;
     }
 
-    .log-success { color: #6ee7b7; border-left-color: #10b981; background: rgba(16, 185, 129, 0.1); }
-    .log-error { color: #fca5a5; border-left-color: #ef4444; background: rgba(239, 68, 68, 0.1); }
-    .log-info { color: #93c5fd; border-left-color: #3b82f6; background: rgba(59, 130, 246, 0.1); }
-    .log-warn { color: #fcd34d; border-left-color: #f59e0b; background: rgba(245, 158, 11, 0.1); }
-
-    .preset-card {
-      background: #1e1e1e;
-      border: 2px solid #333;
-      border-radius: 8px;
-      padding: 16px;
+    /* Preset Badge */
+    .preset-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 8px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      border-radius: 3px;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-secondary);
       cursor: pointer;
       transition: all 0.2s;
     }
 
-    .preset-card:hover {
-      border-color: #3b82f6;
+    .preset-badge:hover {
+      background: var(--bg-active);
+      color: var(--text-primary);
+    }
+
+    .preset-badge.active {
+      background: rgba(143, 168, 118, 0.2);
+      border-color: var(--mint-green);
+      color: var(--mint-accent);
+    }
+
+    /* Welcome Screen */
+    .welcome-screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      padding: 40px;
+    }
+
+    .welcome-logo {
+      width: 80px;
+      height: 80px;
+      margin-bottom: 24px;
+      color: var(--mint-accent);
+    }
+
+    .welcome-title {
+      font-size: 24px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: var(--text-bright);
+    }
+
+    .welcome-subtitle {
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin-bottom: 32px;
+    }
+
+    .welcome-actions {
+      display: flex;
+      gap: 12px;
+    }
+
+    .welcome-action {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      padding: 20px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+      min-width: 140px;
+    }
+
+    .welcome-action:hover {
+      background: var(--bg-active);
+      border-color: var(--mint-green);
       transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+    }
+
+    .welcome-action-icon {
+      width: 32px;
+      height: 32px;
+      color: var(--mint-accent);
+    }
+
+    .welcome-action-label {
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    /* About Modal */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+      animation: fadeIn 0.2s ease;
+    }
+
+    .modal-overlay.show {
+      display: flex;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    @keyframes slideUp {
+      from { 
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to { 
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .modal {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      width: 500px;
+      max-width: 90%;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+      animation: slideUp 0.3s ease;
+      overflow: hidden;
+    }
+
+    .modal-header {
+      background: var(--bg-tertiary);
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .modal-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-bright);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .modal-close {
+      width: 32px;
+      height: 32px;
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      cursor: pointer;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .modal-close:hover {
+      background: var(--bg-active);
+      color: var(--text-primary);
+    }
+
+    .modal-body {
+      padding: 24px;
+    }
+
+    .modal-logo {
+      width: 64px;
+      height: 64px;
+      color: var(--mint-accent);
+      margin: 0 auto 20px;
+      display: block;
+    }
+
+    .modal-app-name {
+      text-align: center;
+      font-size: 24px;
+      font-weight: 600;
+      color: var(--text-bright);
+      margin-bottom: 8px;
+    }
+
+    .modal-version {
+      text-align: center;
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-bottom: 24px;
+    }
+
+    .modal-info-section {
+      margin-bottom: 20px;
+    }
+
+    .modal-info-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
+
+    .modal-info-value {
+      font-size: 14px;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .modal-link {
+      color: var(--mint-accent);
+      text-decoration: none;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .modal-link:hover {
+      color: var(--mint-green-light);
+      text-decoration: underline;
+    }
+
+    .modal-divider {
+      height: 1px;
+      background: var(--border-color);
+      margin: 20px 0;
+    }
+
+    .modal-features {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .modal-feature {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .modal-feature-icon {
+      color: var(--mint-accent);
+      font-size: 14px;
+    }
+
+    .modal-footer {
+      background: var(--bg-tertiary);
+      padding: 16px 20px;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .modal-shortcuts {
+      display: flex;
+      gap: 16px;
+    }
+
+    .modal-shortcut {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .modal-kbd {
+      background: var(--bg-primary);
+      padding: 2px 6px;
+      border-radius: 3px;
+      border: 1px solid var(--border-color);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--text-primary);
     }
   </style>
 </head>
 <body>
-
-  <!-- Header -->
-  <div class="bg-gradient-to-r from-blue-600 to-blue-500 px-6 py-4 flex items-center justify-between shadow-lg">
-    <div class="flex items-center gap-3">
-      <div class="text-3xl">🎬</div>
-      <div>
-        <h1 class="text-2xl font-bold text-white">FFmpeg Converter Pro</h1>
-        <p class="text-sm text-blue-100">Professional Batch Video Converter</p>
-      </div>
+  
+  <!-- Title Bar -->
+  <div class="title-bar">
+    <div class="title-bar-left">
+      <svg class="title-bar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
+      </svg>
+      <span class="title-bar-title">FFmpeg Converter Pro</span>
     </div>
-    <div class="flex items-center gap-4">
-      <button id="install-ffmpeg-btn" class="btn-success px-4 py-2 rounded-lg text-sm">
-        📥 Install FFmpeg
+    <div class="title-bar-right">
+      <button class="title-bar-btn" onclick="minimizeWindow()" title="Minimize">
+        <svg width="10" height="10" viewBox="0 0 10 10">
+          <path fill="currentColor" d="M0 5h10v1H0z"/>
+        </svg>
       </button>
-      <div class="text-right text-sm text-white">
-        <div>Files: <span id="total-files" class="font-bold">0</span></div>
-        <div>Saved: <span id="space-saved" class="font-bold">0 MB</span></div>
-      </div>
+      <button class="title-bar-btn" onclick="maximizeWindow()" id="maximize-btn" title="Maximize">
+        <svg width="10" height="10" viewBox="0 0 10 10">
+          <path fill="currentColor" d="M0 0v10h10V0H0zm1 1h8v8H1V1z"/>
+        </svg>
+      </button>
+      <button class="title-bar-btn close" onclick="closeWindow()" title="Close">
+        <svg width="10" height="10" viewBox="0 0 10 10">
+          <path fill="currentColor" d="M1.1.1l8.8 8.8-.7.7L.4.8.1.1zm8.8 0L1.1 8.9l-.7-.7L9.2.4l.7.7z"/>
+        </svg>
+      </button>
     </div>
   </div>
 
   <!-- Main Container -->
-  <div class="flex flex-1 min-h-0">
+  <div class="main-container">
+    
+    <!-- Activity Bar -->
+    <div class="activity-bar">
+      <button class="activity-item active" onclick="switchView('explorer', this)" title="Explorer">
+        <svg class="activity-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+        </svg>
+      </button>
+      <button class="activity-item" onclick="switchView('settings', this)" title="Settings">
+        <svg class="activity-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M12 1v6m0 6v6M5.6 5.6l4.2 4.2m5.6 5.6l4.2 4.2M1 12h6m6 0h6M5.6 18.4l4.2-4.2m5.6-5.6l4.2-4.2"></path>
+        </svg>
+      </button>
+      <button class="activity-item" onclick="switchView('presets', this)" title="Presets">
+        <svg class="activity-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+        </svg>
+      </button>
+      <button class="activity-item" onclick="switchView('help', this)" title="Help" style="margin-top: auto;">
+        <svg class="activity-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <circle cx="12" cy="12" r="10"></circle>
+          <path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3M12 17h.01"></path>
+        </svg>
+      </button>
+    </div>
 
-    <!-- Left Side - Files (60%) -->
-    <div class="w-3/5 flex flex-col border-r border-gray-800">
-      
-      <!-- File Actions -->
-      <div class="p-4 bg-black flex gap-3">
-        <button id="folder-btn" class="btn-primary flex-1">📁 Add Folder</button>
-        <button id="files-btn" class="btn-primary flex-1">📄 Add Files</button>
-        <button id="clear-btn" class="btn-danger px-6">Clear All</button>
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <span id="sidebar-title">EXPLORER</span>
+        <div class="sidebar-actions">
+          <button class="sidebar-btn" onclick="selectFiles()" title="Add Files">
+            <svg class="icon" viewBox="0 0 24 24">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+          </button>
+          <button class="sidebar-btn" onclick="selectFolder()" title="Add Folder">
+            <svg class="icon" viewBox="0 0 24 24">
+              <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"></path>
+            </svg>
+          </button>
+          <button class="sidebar-btn" onclick="clearFiles()" title="Clear All">
+            <svg class="icon" viewBox="0 0 24 24">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
       </div>
-
-      <!-- File List -->
-      <div class="flex-1 p-4 overflow-y-auto" style="min-height: 0;">
-        <div id="file-list"></div>
-        <div id="empty-state" class="flex items-center justify-center h-full text-gray-500">
-          <div class="text-center">
-            <div class="text-6xl mb-4">📁</div>
-            <div class="text-lg font-semibold">No Files Added</div>
-            <div class="text-sm">Click "Add Folder" or "Add Files" to begin</div>
-          </div>
+      <div class="sidebar-content" id="sidebar-content">
+        <div class="empty-state">
+          <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          <div class="empty-title">No files selected</div>
+          <div class="empty-subtitle">Add files to begin conversion</div>
         </div>
       </div>
     </div>
 
-    <!-- Right Side - Settings (40%) -->
-    <div class="w-2/5 flex flex-col bg-black">
+    <!-- Editor Area -->
+    <div class="editor-area">
       
-      <!-- Tabs -->
-      <div class="flex border-b border-gray-800">
-        <button class="tab-button active" data-tab="quick">⚡ Quick</button>
-        <button class="tab-button" data-tab="video">🎬 Video</button>
-        <button class="tab-button" data-tab="audio">🎵 Audio</button>
-        <button class="tab-button" data-tab="advanced">⚙️ Advanced</button>
+      <!-- Tab Bar -->
+      <div class="tab-bar" id="tab-bar">
+        <div class="tab active">
+          <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+          </svg>
+          <span>Welcome</span>
+        </div>
       </div>
 
-      <!-- Tab Content -->
-      <div class="flex-1 overflow-y-auto p-4" style="min-height: 0;">
-
-        <!-- Quick Tab -->
-        <div id="tab-quick" class="tab-content active space-y-4">
-
-          <!-- Presets FIRST -->
-          <div>
-            <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-3">Presets</h3>
-            <div class="grid grid-cols-2 gap-3">
-              <div data-preset="tv" class="preset-card">
-                <div class="text-2xl mb-2">📺</div>
-                <div class="font-bold text-sm">TV Shows</div>
-                <div class="text-xs text-gray-400">720p • Fast</div>
-              </div>
-              <div data-preset="movie" class="preset-card">
-                <div class="text-2xl mb-2">🎬</div>
-                <div class="font-bold text-sm">Movies</div>
-                <div class="text-xs text-gray-400">1080p • Balanced</div>
-              </div>
-              <div data-preset="quality" class="preset-card">
-                <div class="text-2xl mb-2">⭐</div>
-                <div class="font-bold text-sm">High Quality</div>
-                <div class="text-xs text-gray-400">1080p • Slow</div>
-              </div>
-              <div data-preset="small" class="preset-card">
-                <div class="text-2xl mb-2">💾</div>
-                <div class="font-bold text-sm">Small Size</div>
-                <div class="text-xs text-gray-400">720p • HEVC</div>
-              </div>
+      <!-- Editor Content -->
+      <div class="editor-content" id="editor-content">
+        
+        <!-- Welcome Screen -->
+        <div class="welcome-screen" id="welcome-screen">
+          <svg class="welcome-logo" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
+          </svg>
+          <div class="welcome-title">FFmpeg Converter Pro</div>
+          <div class="welcome-subtitle">Professional media conversion for everyone</div>
+          <div class="welcome-actions">
+            <div class="welcome-action" onclick="selectFiles()">
+              <svg class="welcome-action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <span class="welcome-action-label">Add Files</span>
+            </div>
+            <div class="welcome-action" onclick="selectFolder()">
+              <svg class="welcome-action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+              </svg>
+              <span class="welcome-action-label">Add Folder</span>
+            </div>
+            <div class="welcome-action" onclick="showAbout()">
+              <svg class="welcome-action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="M12 16v-4M12 8h.01"></path>
+              </svg>
+              <span class="welcome-action-label">About</span>
             </div>
           </div>
-
-          <!-- Custom Presets SECOND -->
-          <div>
-            <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-3">Your Presets</h3>
-            <div id="custom-preset-list" class="space-y-2 mb-3"></div>
-            <div class="flex gap-2">
-              <input type="text" id="preset-name" placeholder="Preset name..." class="input-field flex-1 text-sm">
-              <button id="save-preset" class="btn-secondary px-4">💾 Save</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Video Tab -->
-        <div id="tab-video" class="tab-content space-y-4">
-          <div>
-            <label class="block text-xs font-bold text-gray-400 uppercase mb-2">Container</label>
-            <select id="container" class="input-field w-full">
-              <option value="mkv">MKV (Matroska)</option>
-              <option value="mp4">MP4</option>
-              <option value="webm">WebM</option>
-              <option value="avi">AVI</option>
-            </select>
-          </div>
-
-          <div>
-            <label class="block text-xs font-bold text-gray-400 uppercase mb-2">Video Codec</label>
-            <select id="videoCodec" class="input-field w-full">
-              <option value="libx264">H.264 (x264)</option>
-              <option value="libx265">H.265 (HEVC)</option>
-              <option value="libvpx-vp9">VP9 (WebM)</option>
-              <option value="copy">Copy (No Re-encode)</option>
-            </select>
-          </div>
-
-          <div>
-            <label class="block text-xs font-bold text-gray-400 uppercase mb-2">Resolution</label>
-            <select id="resolution" class="input-field w-full">
-              <option value="original">Original (No Resize)</option>
-              <option value="2160">4K (2160p)</option>
-              <option value="1440">2K (1440p)</option>
-              <option value="1080">1080p (Full HD)</option>
-              <option value="720">720p (HD)</option>
-              <option value="480">480p (SD)</option>
-            </select>
-          </div>
-
-          <div>
-            <label class="block text-xs font-bold text-gray-400 uppercase mb-2">
-              Quality (CRF): <span id="crf-value" class="text-blue-400">23</span>
-            </label>
-            <input type="range" id="crf" min="0" max="51" value="23" class="w-full">
-            <div class="flex justify-between text-xs text-gray-500 mt-1">
-              <span>Best (0)</span>
-              <span>Worst (51)</span>
-            </div>
-          </div>
-
-          <div>
-            <label class="block text-xs font-bold text-gray-400 uppercase mb-2">Encoding Speed</label>
-            <select id="preset" class="input-field w-full">
-              <option value="ultrafast">Ultrafast</option>
-              <option value="superfast">Superfast</option>
-              <option value="veryfast">Very Fast</option>
-              <option value="faster">Faster</option>
-              <option value="fast">Fast</option>
-              <option value="medium" selected>Medium</option>
-              <option value="slow">Slow</option>
-              <option value="slower">Slower</option>
-              <option value="veryslow">Very Slow</option>
-            </select>
-          </div>
-        </div>
-
-        <!-- Audio Tab -->
-        <div id="tab-audio" class="tab-content space-y-4">
-          <div>
-            <label class="block text-xs font-bold text-gray-400 uppercase mb-2">Audio Codec</label>
-            <select id="audioCodec" class="input-field w-full">
-              <option value="aac">AAC</option>
-              <option value="libopus">Opus</option>
-              <option value="libmp3lame">MP3</option>
-              <option value="copy">Copy (No Re-encode)</option>
-            </select>
-          </div>
-
-          <div>
-            <label class="block text-xs font-bold text-gray-400 uppercase mb-2">Audio Bitrate</label>
-            <select id="audio-bitrate" class="input-field w-full">
-              <option value="96k">96 kbps</option>
-              <option value="128k">128 kbps</option>
-              <option value="192k" selected>192 kbps</option>
-              <option value="256k">256 kbps</option>
-              <option value="320k">320 kbps</option>
-            </select>
-          </div>
-        </div>
-
-        <!-- Advanced Tab -->
-        <div id="tab-advanced" class="tab-content space-y-4">
-          
-          <!-- Output Options FIRST -->
-          <div>
-            <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-3">Output Options</h3>
-            <div class="space-y-2">
-              <label class="flex items-center gap-3 p-3 bg-gray-900 rounded cursor-pointer hover:bg-gray-800">
-                <input type="checkbox" id="output-subfolder" checked class="w-4 h-4">
-                <span class="text-sm">Output to "converted" folder</span>
-              </label>
-              <label class="flex items-center gap-3 p-3 bg-gray-900 rounded cursor-pointer hover:bg-gray-800">
-                <input type="checkbox" id="clean-filenames" class="w-4 h-4">
-                <span class="text-sm">Clean filenames</span>
-              </label>
-              <label class="flex items-center gap-3 p-3 bg-red-900 border-2 border-red-700 rounded cursor-pointer hover:bg-red-800">
-                <input type="checkbox" id="replace-original" class="w-4 h-4">
-                <span class="text-sm font-semibold">⚠️ Replace original files</span>
-              </label>
-            </div>
-          </div>
-
-          <!-- FFmpeg Status -->
-          <div class="p-4 bg-gray-900 rounded">
-            <h3 class="font-bold mb-2">FFmpeg Status</h3>
-            <div id="ffmpeg-status" class="text-sm text-gray-400">Checking...</div>
-          </div>
-
-          <div>
-            <h3 class="text-xs font-bold text-gray-400 uppercase mb-2">Custom FFmpeg Path</h3>
-            <button id="set-ffmpeg-path-btn" class="btn-secondary w-full">
-              📂 Select FFmpeg Executable
+          <div style="margin-top: 24px;">
+            <button onclick="startConversion()" id="convert-btn" class="btn btn-primary" style="padding: 12px 24px; font-size: 14px;" disabled>
+              <svg class="icon" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polygon points="10 8 16 12 10 16 10 8"></polygon>
+              </svg>
+              Start Conversion
             </button>
           </div>
+        </div>
 
-          <div class="p-4 bg-blue-900 border border-blue-700 rounded">
-            <h3 class="font-bold mb-2">💡 Tips</h3>
-            <ul class="text-xs space-y-1 text-blue-200">
-              <li>• All subtitle streams are copied automatically</li>
-              <li>• Multiple audio tracks are preserved</li>
-              <li>• Chapter markers are maintained</li>
-              <li>• Use H.265 for smaller files</li>
-              <li>• Lower CRF = better quality</li>
-            </ul>
+        <!-- Settings Content (Hidden by default) -->
+        <div id="settings-content" style="display: none;">
+          <!-- Video Settings -->
+          <div class="settings-section">
+            <div class="settings-section-title">Video Settings</div>
+            <div class="settings-grid">
+              <div class="setting-item">
+                <label class="setting-label">Output Format</label>
+                <select id="video-format">
+                  <option value="mp4">MP4</option>
+                  <option value="mkv">MKV</option>
+                  <option value="avi">AVI</option>
+                  <option value="mov">MOV</option>
+                  <option value="webm">WebM</option>
+                </select>
+                <span class="setting-help">Container format</span>
+              </div>
+
+              <div class="setting-item">
+                <label class="setting-label">Video Codec</label>
+                <select id="video-codec">
+                  <option value="libx264">H.264</option>
+                  <option value="libx265">H.265</option>
+                  <option value="libvpx-vp9">VP9</option>
+                  <option value="copy">Copy</option>
+                </select>
+              </div>
+
+              <div class="setting-item">
+                <label class="setting-label">Quality (CRF)</label>
+                <input type="number" id="video-crf" value="23" min="0" max="51">
+                <span class="setting-help">Lower = better (18-28)</span>
+              </div>
+
+              <div class="setting-item">
+                <label class="setting-label">Resolution</label>
+                <select id="video-resolution">
+                  <option value="">Original</option>
+                  <option value="1920x1080">1080p</option>
+                  <option value="1280x720">720p</option>
+                  <option value="854x480">480p</option>
+                </select>
+              </div>
+
+              <div class="setting-item">
+                <label class="setting-label">Frame Rate</label>
+                <select id="video-fps">
+                  <option value="">Original</option>
+                  <option value="24">24 fps</option>
+                  <option value="30">30 fps</option>
+                  <option value="60">60 fps</option>
+                </select>
+              </div>
+
+              <div class="setting-item">
+                <label class="setting-label">Preset</label>
+                <select id="video-preset">
+                  <option value="ultrafast">Ultra Fast</option>
+                  <option value="fast">Fast</option>
+                  <option value="medium" selected>Medium</option>
+                  <option value="slow">Slow</option>
+                  <option value="veryslow">Very Slow</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Advanced Video -->
+            <div class="collapsible-header" onclick="toggleCollapsible(this)">
+              <svg class="collapsible-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+              <span>Advanced Video Settings</span>
+            </div>
+            <div class="collapsible-content">
+              <div class="settings-grid" style="margin-top: 12px;">
+                <div class="setting-item">
+                  <label class="setting-label">Pixel Format</label>
+                  <select id="video-pixfmt">
+                    <option value="">Auto</option>
+                    <option value="yuv420p">YUV420p</option>
+                    <option value="yuv422p">YUV422p</option>
+                  </select>
+                </div>
+                <div class="setting-item">
+                  <label class="setting-label">GOP Size</label>
+                  <input type="number" id="video-gop" placeholder="Auto">
+                </div>
+                <div class="setting-item" style="grid-column: span 2;">
+                  <label class="setting-label">Custom Arguments</label>
+                  <input type="text" id="custom-video-args" placeholder="-crf 18 -preset slow">
+                </div>
+              </div>
+            </div>
           </div>
+
+          <!-- Audio Settings -->
+          <div class="settings-section">
+            <div class="settings-section-title">Audio Settings</div>
+            <div class="settings-grid">
+              <div class="setting-item">
+                <label class="setting-label">Audio Codec</label>
+                <select id="audio-codec">
+                  <option value="aac">AAC</option>
+                  <option value="libmp3lame">MP3</option>
+                  <option value="copy">Copy</option>
+                  <option value="none">No Audio</option>
+                </select>
+              </div>
+
+              <div class="setting-item">
+                <label class="setting-label">Bitrate</label>
+                <select id="audio-bitrate">
+                  <option value="128">128 kbps</option>
+                  <option value="192">192 kbps</option>
+                  <option value="256">256 kbps</option>
+                  <option value="320">320 kbps</option>
+                </select>
+              </div>
+
+              <div class="setting-item">
+                <label class="setting-label">Sample Rate</label>
+                <select id="audio-samplerate">
+                  <option value="">Original</option>
+                  <option value="44100">44.1 kHz</option>
+                  <option value="48000">48 kHz</option>
+                </select>
+              </div>
+
+              <div class="setting-item">
+                <label class="setting-label">Channels</label>
+                <select id="audio-channels">
+                  <option value="">Original</option>
+                  <option value="1">Mono</option>
+                  <option value="2">Stereo</option>
+                  <option value="6">5.1</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Subtitles -->
+          <div class="settings-section">
+            <div class="settings-section-title">Subtitle Settings</div>
+            <div class="settings-grid">
+              <div class="setting-item">
+                <label class="setting-label">Subtitle Mode</label>
+                <select id="subtitle-mode">
+                  <option value="copy">Copy All</option>
+                  <option value="none">Remove All</option>
+                  <option value="select">Select Specific</option>
+                  <option value="burn">Burn Into Video</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Output -->
+          <div class="settings-section">
+            <div class="settings-section-title">Output Settings</div>
+            <div class="settings-grid">
+              <div class="setting-item" style="grid-column: span 2;">
+                <label class="setting-label">Output Folder</label>
+                <div style="display: flex; gap: 8px;">
+                  <input type="text" id="output-folder" placeholder="Same as source" style="flex: 1;">
+                  <button class="btn btn-secondary" onclick="selectOutputFolder()">Browse</button>
+                </div>
+              </div>
+              <div class="setting-item">
+                <label class="setting-label">Naming Pattern</label>
+                <select id="naming-pattern">
+                  <option value="original">Keep Original</option>
+                  <option value="prefix">Add Prefix</option>
+                  <option value="suffix">Add Suffix</option>
+                </select>
+              </div>
+              <div class="setting-item">
+                <label class="setting-label">Hardware Acceleration</label>
+                <select id="hw-accel">
+                  <option value="">None</option>
+                  <option value="auto">Auto</option>
+                  <option value="nvenc">NVIDIA</option>
+                  <option value="qsv">Intel</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
         </div>
 
       </div>
 
-      <!-- Convert Button -->
-      <div class="p-4 bg-gradient-to-r from-blue-600 to-blue-500">
-        <button id="convert-btn" class="w-full bg-white text-blue-600 font-bold py-4 rounded-lg text-lg hover:bg-blue-50 transition-all">
-          ▶️ Start Batch Conversion
+    </div>
+
+  </div>
+
+  <!-- Bottom Panel -->
+  <div class="panel" id="panel">
+    <div class="panel-header">
+      <div class="panel-tabs">
+        <div class="panel-tab active" onclick="switchPanelTab('output', this)">Output</div>
+        <div class="panel-tab" onclick="switchPanelTab('problems', this)">Problems</div>
+      </div>
+      <div class="panel-actions">
+        <button class="sidebar-btn" onclick="clearPanel()" title="Clear">
+          <svg class="icon" viewBox="0 0 24 24">
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"></path>
+          </svg>
+        </button>
+        <button class="sidebar-btn" onclick="togglePanel()" title="Toggle">
+          <svg class="icon" viewBox="0 0 24 24">
+            <polyline points="18 15 12 9 6 15"></polyline>
+          </svg>
         </button>
       </div>
-
     </div>
-
+    <div class="panel-content">
+      <!-- Output Content -->
+      <div id="output-content" style="display: block;">
+        <div class="log-entry">
+          <span class="log-time">[00:00:00]</span>
+          <span class="log-message">Waiting for conversion...</span>
+        </div>
+      </div>
+      
+      <!-- Problems Content -->
+      <div id="problems-content" style="display: none;">
+        <div class="problems-empty">
+          <div class="problems-empty-icon">✓</div>
+          <div class="problems-empty-text">No problems detected</div>
+        </div>
+      </div>
+    </div>
   </div>
 
-  <!-- Bottom Log Panel -->
-  <div class="h-48 bg-black border-t border-gray-800 flex flex-col">
-    <div class="px-4 py-2 bg-gray-900 flex items-center justify-between border-b border-gray-800">
-      <span class="text-sm font-bold text-gray-300">Activity Log</span>
-      <button id="clear-log-btn" class="text-xs text-gray-500 hover:text-gray-300">Clear Log</button>
+  <!-- Status Bar -->
+  <div class="status-bar">
+    <div class="status-left">
+      <div class="status-item">
+        <span class="status-indicator online"></span>
+        <span id="ffmpeg-status">FFmpeg Ready</span>
+      </div>
+      <div class="status-item">
+        <span id="file-count">0 files</span>
+      </div>
     </div>
-    <div id="log-container" class="flex-1 overflow-y-auto p-2"></div>
+    <div class="status-right">
+      <div class="status-item" onclick="showAbout()">
+        <span>Created by Clay MacDonald</span>
+      </div>
+      <div class="status-item">
+        <span>v2.0.0</span>
+      </div>
+    </div>
   </div>
 
-  <script src="renderer.js"></script>
+  <!-- About Modal -->
+  <div class="modal-overlay" id="about-modal" onclick="closeAboutModal(event)">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <div class="modal-title">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <circle cx="12" cy="12" r="10"></circle>
+            <path d="M12 16v-4M12 8h.01"></path>
+          </svg>
+          About
+        </div>
+        <button class="modal-close" onclick="closeAboutModal()">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor">
+            <line x1="12" y1="4" x2="4" y2="12"></line>
+            <line x1="4" y1="4" x2="12" y2="12"></line>
+          </svg>
+        </button>
+      </div>
+      
+      <div class="modal-body">
+        <svg class="modal-logo" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
+        </svg>
+        
+        <div class="modal-app-name">FFmpeg Converter Pro</div>
+        <div class="modal-version">Version 2.0.0</div>
+        
+        <div class="modal-info-section">
+          <div class="modal-info-label">Created By</div>
+          <div class="modal-info-value">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"></path>
+              <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+            Clay MacDonald
+          </div>
+        </div>
+        
+        <div class="modal-info-section">
+          <div class="modal-info-label">Repository</div>
+          <div class="modal-info-value">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 00-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0020 4.77 5.07 5.07 0 0019.91 1S18.73.65 16 2.48a13.38 13.38 0 00-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 005 4.77a5.44 5.44 0 00-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 009 18.13V22"></path>
+            </svg>
+            <a href="#" onclick="openGitHub(); return false;" class="modal-link">
+              github.com/Claymaver/ffmpeg-converter-pro
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"></path>
+                <polyline points="15 3 21 3 21 9"></polyline>
+                <line x1="10" y1="14" x2="21" y2="3"></line>
+              </svg>
+            </a>
+          </div>
+        </div>
+        
+        <div class="modal-divider"></div>
+        
+        <div class="modal-info-section">
+          <div class="modal-info-label">Technologies</div>
+          <div class="modal-features">
+            <div class="modal-feature">
+              <span class="modal-feature-icon">⚡</span>
+              Electron 33
+            </div>
+            <div class="modal-feature">
+              <span class="modal-feature-icon">🎬</span>
+              FFmpeg
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="modal-footer">
+        <div class="modal-shortcuts">
+          <div class="modal-shortcut">
+            <span class="modal-kbd">F12</span>
+            <span>DevTools</span>
+          </div>
+          <div class="modal-shortcut">
+            <span class="modal-kbd">Ctrl+O</span>
+            <span>Add Files</span>
+          </div>
+        </div>
+        <div>© 2026 Clay MacDonald</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Global state
+    let selectedFiles = [];
+    let currentView = 'explorer';
+    let activeTab = 'welcome';
+
+    // Initialize
+    window.addEventListener('DOMContentLoaded', async () => {
+      console.log('=== FFmpeg Converter Pro Starting ===');
+      console.log('Checking electronAPI...', window.electronAPI ? 'AVAILABLE' : 'NOT AVAILABLE');
+      
+      if (window.electronAPI) {
+        console.log('Available APIs:', Object.keys(window.electronAPI));
+      } else {
+        console.error('CRITICAL: electronAPI not available! Preload script may not have loaded.');
+        alert('Critical Error: Application not properly initialized.\n\nPlease check:\n1. preload.js is in same folder as main.js\n2. package.json "main" field is correct\n3. Restart the application');
+      }
+      
+      await checkFFmpegStatus();
+      updateFileCount();
+      
+      console.log('=== Initialization Complete ===');
+    });
+
+    // View switching (make global)
+    window.switchView = function switchView(view, clickedButton) {
+      currentView = view;
+      
+      // Update activity bar
+      document.querySelectorAll('.activity-item').forEach(item => {
+        item.classList.remove('active');
+      });
+      if (clickedButton) {
+        clickedButton.classList.add('active');
+      }
+      
+      // Update sidebar
+      const sidebarTitle = document.getElementById('sidebar-title');
+      const sidebarContent = document.getElementById('sidebar-content');
+      
+      if (view === 'explorer') {
+        sidebarTitle.textContent = 'EXPLORER';
+        updateFileList();
+      } else if (view === 'settings') {
+        sidebarTitle.textContent = 'SETTINGS';
+        sidebarContent.innerHTML = '<div style="padding: 12px; font-size: 12px; color: var(--text-secondary);">Settings are in the editor panel →</div>';
+        showSettings();
+      } else if (view === 'presets') {
+        sidebarTitle.textContent = 'PRESETS';
+        loadPresetsSidebar();
+      } else if (view === 'help') {
+        sidebarTitle.textContent = 'HELP';
+        loadHelpSidebar();
+      }
+    }
+
+    function showSettings() {
+      document.getElementById('welcome-screen').style.display = 'none';
+      document.getElementById('settings-content').style.display = 'block';
+      
+      // Update tab
+      const tabBar = document.getElementById('tab-bar');
+      tabBar.innerHTML = `
+        <div class="tab active">
+          <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M12 1v6m0 6v6M5.6 5.6l4.2 4.2m5.6 5.6l4.2 4.2M1 12h6m6 0h6M5.6 18.4l4.2-4.2m5.6-5.6l4.2-4.2"></path>
+          </svg>
+          <span>Settings</span>
+        </div>
+      `;
+    }
+
+    // File operations (make explicitly global)
+    window.selectFiles = async function selectFiles() {
+      console.log('selectFiles() called');
+      try {
+        if (!window.electronAPI) {
+          console.error('electronAPI not available');
+          alert('Error: Application not properly loaded. Please restart.');
+          return;
+        }
+        
+        console.log('Calling window.electronAPI.selectFiles()...');
+        const files = await window.electronAPI.selectFiles();
+        console.log('Got files:', files);
+        
+        if (files && files.length > 0) {
+          selectedFiles = [...selectedFiles, ...files];
+          updateFileList();
+          updateFileCount();
+          updateConvertButton();
+          
+          // Hide welcome screen after files are added
+          const welcomeScreen = document.getElementById('welcome-screen');
+          if (welcomeScreen) {
+            welcomeScreen.style.display = 'none';
+          }
+        }
+      } catch (error) {
+        console.error('Error selecting files:', error);
+        alert('Error selecting files: ' + error.message);
+      }
+    };
+
+    window.selectFolder = async function selectFolder() {
+      console.log('selectFolder() called');
+      try {
+        if (!window.electronAPI) {
+          console.error('electronAPI not available');
+          alert('Error: Application not properly loaded. Please restart.');
+          return;
+        }
+        
+        console.log('Calling window.electronAPI.selectFolder()...');
+        const files = await window.electronAPI.selectFolder();
+        console.log('Got files:', files);
+        
+        if (files && files.length > 0) {
+          selectedFiles = [...selectedFiles, ...files];
+          updateFileList();
+          updateFileCount();
+          updateConvertButton();
+          
+          // Hide welcome screen after files are added
+          const welcomeScreen = document.getElementById('welcome-screen');
+          if (welcomeScreen) {
+            welcomeScreen.style.display = 'none';
+          }
+        }
+      } catch (error) {
+        console.error('Error selecting folder:', error);
+        alert('Error selecting folder: ' + error.message);
+      }
+    };
+
+    window.showAbout = function showAbout() {
+      console.log('showAbout() called');
+      const modal = document.getElementById('about-modal');
+      if (modal) {
+        modal.classList.add('show');
+      }
+    };
+
+    window.closeAboutModal = function closeAboutModal(event) {
+      // Close if clicking overlay (not the modal itself)
+      if (!event || event.target.id === 'about-modal') {
+        const modal = document.getElementById('about-modal');
+        if (modal) {
+          modal.classList.remove('show');
+        }
+      }
+    };
+
+    // Close modal with Escape key
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeAboutModal({ target: { id: 'about-modal' } });
+      }
+    });
+
+    window.clearFiles = function clearFiles() {
+      selectedFiles = [];
+      updateFileList();
+      updateFileCount();
+      updateConvertButton();
+    };
+
+    window.removeFile = function removeFile(index) {
+      selectedFiles.splice(index, 1);
+      updateFileList();
+      updateFileCount();
+      updateConvertButton();
+    };
+
+    function updateFileList() {
+      const container = document.getElementById('sidebar-content');
+      
+      if (selectedFiles.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <div class="empty-title">No files selected</div>
+            <div class="empty-subtitle">Add files to begin conversion</div>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = selectedFiles.map((file, index) => {
+        const filename = file.split(/[/\\]/).pop();
+        return `
+          <div class="file-tree-item" onclick="selectFileItem(${index})">
+            <svg class="file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+            </svg>
+            <span class="file-name" title="${file}">${filename}</span>
+            <div class="file-status" id="status-${index}"></div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    window.selectFileItem = function selectFileItem(index) {
+      // Remove previous selection
+      document.querySelectorAll('.file-tree-item').forEach(item => {
+        item.classList.remove('selected');
+      });
+      
+      // Select clicked item
+      const items = document.querySelectorAll('.file-tree-item');
+      if (items[index]) {
+        items[index].classList.add('selected');
+      }
+    };
+
+    function updateFileCount() {
+      document.getElementById('file-count').textContent = `${selectedFiles.length} files`;
+    }
+
+    // Panel operations (make global)
+    window.switchPanelTab = function switchPanelTab(tab, clickedTab) {
+      // Update active tab
+      document.querySelectorAll('.panel-tab').forEach(t => {
+        t.classList.remove('active');
+      });
+      if (clickedTab) {
+        clickedTab.classList.add('active');
+      }
+      
+      // Switch content
+      const outputContent = document.getElementById('output-content');
+      const problemsContent = document.getElementById('problems-content');
+      
+      if (tab === 'output') {
+        outputContent.style.display = 'block';
+        problemsContent.style.display = 'none';
+      } else if (tab === 'problems') {
+        outputContent.style.display = 'none';
+        problemsContent.style.display = 'block';
+      }
+    };
+
+    window.togglePanel = function togglePanel() {
+      const panel = document.getElementById('panel');
+      panel.classList.toggle('collapsed');
+    };
+
+    window.clearPanel = function clearPanel() {
+      // Clear output
+      const outputContent = document.getElementById('output-content');
+      if (outputContent) {
+        outputContent.innerHTML = `
+          <div class="log-entry">
+            <span class="log-time">[${new Date().toLocaleTimeString()}]</span>
+            <span class="log-message">Log cleared</span>
+          </div>
+        `;
+      }
+      
+      // Clear problems
+      clearProblems();
+    };
+
+    function logMessage(message, type = 'info') {
+      const outputContent = document.getElementById('output-content');
+      if (!outputContent) return;
+      
+      const time = new Date().toLocaleTimeString();
+      
+      const entry = document.createElement('div');
+      entry.className = 'log-entry';
+      entry.innerHTML = `
+        <span class="log-time">[${time}]</span>
+        <span class="log-message ${type}">${message}</span>
+      `;
+      
+      outputContent.appendChild(entry);
+      outputContent.scrollTop = outputContent.scrollHeight;
+    }
+
+    // Problems management
+    let problemCount = 0;
+
+    window.addProblem = function addProblem(file, severity, message, solution) {
+      const problemsContent = document.getElementById('problems-content');
+      if (!problemsContent) return;
+      
+      // Remove empty state if present
+      const emptyState = problemsContent.querySelector('.problems-empty');
+      if (emptyState) {
+        problemsContent.innerHTML = '<div class="problems-container"></div>';
+      }
+      
+      const container = problemsContent.querySelector('.problems-container') || problemsContent;
+      
+      const problemItem = document.createElement('div');
+      problemItem.className = `problem-item ${severity}`;
+      problemItem.innerHTML = `
+        <div class="problem-header">
+          <span class="problem-severity ${severity}">${severity === 'error' ? '❌' : '⚠️'}</span>
+          <span class="problem-file">${file}</span>
+        </div>
+        <div class="problem-message">${message}</div>
+        ${solution ? `
+          <div class="problem-solution">
+            <span class="problem-solution-icon">💡</span>
+            <span>${solution}</span>
+          </div>
+        ` : ''}
+      `;
+      
+      container.appendChild(problemItem);
+      problemCount++;
+      
+      // Update tab badge
+      updateProblemCount();
+      
+      // Auto-switch to Problems tab if error
+      if (severity === 'error') {
+        const problemsTab = document.querySelector('.panel-tab:nth-child(2)');
+        if (problemsTab) {
+          switchPanelTab('problems', problemsTab);
+        }
+      }
+    };
+
+    function updateProblemCount() {
+      const problemsTab = document.querySelector('.panel-tab:nth-child(2)');
+      if (!problemsTab) return;
+      
+      // Remove existing badge
+      const existingBadge = problemsTab.querySelector('.problems-count');
+      if (existingBadge) {
+        existingBadge.remove();
+      }
+      
+      // Add new badge if problems exist
+      if (problemCount > 0) {
+        const badge = document.createElement('span');
+        badge.className = 'problems-count';
+        badge.textContent = problemCount;
+        problemsTab.appendChild(badge);
+      }
+    }
+
+    function clearProblems() {
+      const problemsContent = document.getElementById('problems-content');
+      if (problemsContent) {
+        problemsContent.innerHTML = `
+          <div class="problems-empty">
+            <div class="problems-empty-icon">✓</div>
+            <div class="problems-empty-text">No problems detected</div>
+          </div>
+        `;
+      }
+      problemCount = 0;
+      updateProblemCount();
+    }
+
+    function getSolutionForError(errorMessage) {
+      const error = errorMessage.toLowerCase();
+      
+      // Permission errors
+      if (error.includes('permission denied') || error.includes('eacces')) {
+        return 'Try running the app as administrator, or choose a different output folder where you have write permissions.';
+      }
+      
+      // File not found
+      if (error.includes('no such file') || error.includes('enoent')) {
+        return 'Make sure the file exists and hasn\'t been moved or deleted. Try adding the file again.';
+      }
+      
+      // Codec errors
+      if (error.includes('unknown encoder') || error.includes('encoder not found')) {
+        return 'The selected codec is not available. Try installing a newer version of FFmpeg with more codec support, or choose a different codec (H.264 is widely supported).';
+      }
+      
+      // Format errors
+      if (error.includes('invalid data found') || error.includes('could not find codec')) {
+        return 'The input file may be corrupted or in an unsupported format. Try converting with a different format or re-downloading the source file.';
+      }
+      
+      // Disk space
+      if (error.includes('no space left') || error.includes('enospc')) {
+        return 'Not enough disk space. Free up some space on your drive or choose a different output location.';
+      }
+      
+      // File already exists
+      if (error.includes('file exists') || error.includes('already exists')) {
+        return 'Output file already exists. Choose a different output folder, rename the output file, or delete the existing file.';
+      }
+      
+      // Hardware acceleration
+      if (error.includes('hwaccel') || error.includes('cuda') || error.includes('nvenc')) {
+        return 'Hardware acceleration failed. Try disabling hardware acceleration in settings, or update your GPU drivers.';
+      }
+      
+      // Path too long
+      if (error.includes('path too long') || error.includes('enametoolong')) {
+        return 'File path is too long. Try moving files to a folder with a shorter path, or use a shorter output filename.';
+      }
+      
+      // Invalid resolution
+      if (error.includes('invalid') && error.includes('resolution')) {
+        return 'The specified resolution is invalid. Try using a standard resolution like 1920x1080 or 1280x720.';
+      }
+      
+      // Generic FFmpeg error
+      if (error.includes('ffmpeg')) {
+        return 'FFmpeg encountered an error. Check the Output tab for more details, or try with default settings.';
+      }
+      
+      // Default solution
+      return 'Try using different settings, or check if the input file is valid. See Output tab for more details.';
+    }
+
+    // Collapsible (make global)
+    window.toggleCollapsible = function toggleCollapsible(header) {
+      header.classList.toggle('open');
+      header.nextElementSibling.classList.toggle('open');
+    }
+
+    // Presets sidebar
+    function loadPresetsSidebar() {
+      const container = document.getElementById('sidebar-content');
+      container.innerHTML = `
+        <div style="padding: 8px;">
+          <div style="margin-bottom: 12px;">
+            <div style="font-size: 11px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px; text-transform: uppercase;">Video Presets</div>
+            <div class="preset-badge" onclick="applyPreset('high-quality')">🎬 High Quality</div>
+            <div class="preset-badge" style="margin-top: 4px;" onclick="applyPreset('web')">🌐 Web Optimized</div>
+            <div class="preset-badge" style="margin-top: 4px;" onclick="applyPreset('4k')">🎥 4K Quality</div>
+          </div>
+          <div style="margin-bottom: 12px;">
+            <div style="font-size: 11px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px; text-transform: uppercase;">Audio Presets</div>
+            <div class="preset-badge" onclick="applyPreset('audio-high')">🎵 High Quality</div>
+            <div class="preset-badge" style="margin-top: 4px;" onclick="applyPreset('audio-medium')">🎶 Medium Quality</div>
+          </div>
+          <button class="btn btn-secondary" style="width: 100%; margin-top: 12px;">
+            <svg class="icon" viewBox="0 0 24 24">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            Save Current as Preset
+          </button>
+        </div>
+      `;
+    }
+
+    window.applyPreset = function applyPreset(preset) {
+      logMessage(`Applied preset: ${preset}`, 'success');
+      // Apply preset logic here
+    };
+
+    // Help sidebar
+    function loadHelpSidebar() {
+      const container = document.getElementById('sidebar-content');
+      container.innerHTML = `
+        <div style="padding: 12px; font-size: 12px; line-height: 1.6;">
+          <div style="margin-bottom: 16px;">
+            <div style="font-weight: 600; margin-bottom: 8px; color: var(--text-bright);">Quick Start</div>
+            <div style="color: var(--text-secondary);">
+              1. Add files using the + button<br>
+              2. Configure settings in Settings view<br>
+              3. Press Ctrl+Shift+C to convert
+            </div>
+          </div>
+          
+          <div style="margin-bottom: 16px;">
+            <div style="font-weight: 600; margin-bottom: 8px; color: var(--text-bright);">Keyboard Shortcuts</div>
+            <div style="color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; font-size: 11px;">
+              Ctrl+O - Add Files<br>
+              Ctrl+Shift+O - Add Folder<br>
+              Ctrl+Shift+C - Start Conversion<br>
+              Ctrl+, - Settings<br>
+              Ctrl+\` - Toggle Panel
+            </div>
+          </div>
+          
+          <div style="margin-bottom: 16px;">
+            <div style="font-weight: 600; margin-bottom: 8px; color: var(--text-bright);">About</div>
+            <div style="color: var(--text-secondary);">
+              FFmpeg Converter Pro v2.0.0<br>
+              Created by <span style="color: var(--mint-accent);">Clay MacDonald</span><br>
+              <a href="#" onclick="openGitHub(); return false;" style="color: var(--mint-accent); text-decoration: none;">GitHub Repository</a>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    async function checkFFmpegStatus() {
+      const status = await window.electronAPI.checkFFmpegStatus();
+      const indicator = document.querySelector('.status-indicator');
+      const statusText = document.getElementById('ffmpeg-status');
+      
+      if (status.available) {
+        indicator.classList.add('online');
+        indicator.classList.remove('offline');
+        statusText.textContent = `FFmpeg ${status.version}`;
+      } else {
+        indicator.classList.add('offline');
+        indicator.classList.remove('online');
+        statusText.textContent = 'FFmpeg Not Found';
+      }
+    }
+
+    function showAbout() {
+      alert('FFmpeg Converter Pro v2.0.0\n\nCreated by Clay MacDonald\nGitHub: github.com/Claymaver/ffmpeg-converter-pro\n\nBuilt with Electron + FFmpeg\nInspired by VS Code');
+    }
+
+    window.openGitHub = function openGitHub() {
+      window.electronAPI.openExternal('https://github.com/Claymaver/ffmpeg-converter-pro');
+    };
+
+    window.selectOutputFolder = async function selectOutputFolder() {
+      const folder = await window.electronAPI.selectFolder();
+      if (folder && folder.length > 0) {
+        document.getElementById('output-folder').value = folder[0];
+      }
+    }
+
+    // Window controls (make explicitly global)
+    window.minimizeWindow = async function minimizeWindow() {
+      console.log('minimizeWindow() called');
+      try {
+        await window.electronAPI.windowMinimize();
+        console.log('Window minimized');
+      } catch (error) {
+        console.error('Error minimizing:', error);
+      }
+    };
+
+    window.maximizeWindow = async function maximizeWindow() {
+      console.log('maximizeWindow() called');
+      try {
+        await window.electronAPI.windowMaximize();
+        await updateMaximizeButton();
+        console.log('Window maximized/restored');
+      } catch (error) {
+        console.error('Error maximizing:', error);
+      }
+    };
+
+    window.closeWindow = async function closeWindow() {
+      console.log('closeWindow() called');
+      try {
+        await window.electronAPI.windowClose();
+        console.log('Window close requested');
+      } catch (error) {
+        console.error('Error closing:', error);
+      }
+    };
+
+    async function updateMaximizeButton() {
+      const btn = document.getElementById('maximize-btn');
+      const isMaximized = await window.electronAPI.windowIsMaximized();
+      
+      if (isMaximized) {
+        // Show restore icon
+        btn.innerHTML = `
+          <svg width="10" height="10" viewBox="0 0 10 10">
+            <path fill="currentColor" d="M2 0v2H0v8h8V8h2V0H2zm1 1h6v6H8V3H3V1zm-2 2h5v5H1V3z"/>
+          </svg>
+        `;
+        btn.title = 'Restore';
+      } else {
+        // Show maximize icon
+        btn.innerHTML = `
+          <svg width="10" height="10" viewBox="0 0 10 10">
+            <path fill="currentColor" d="M0 0v10h10V0H0zm1 1h8v8H1V1z"/>
+          </svg>
+        `;
+        btn.title = 'Maximize';
+      }
+    }
+
+    // Progress tracking
+    window.electronAPI.onConversionProgress((data) => {
+      const { fileIndex, progress, speed, eta } = data;
+      const statusDot = document.getElementById(`status-${fileIndex}`);
+      
+      if (statusDot) {
+        if (progress >= 100) {
+          statusDot.classList.remove('processing');
+          statusDot.classList.add('success');
+        } else {
+          statusDot.classList.add('processing');
+        }
+      }
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key === 'o' && e.shiftKey) {
+          e.preventDefault();
+          selectFolder();
+        } else if (e.key === 'o') {
+          e.preventDefault();
+          selectFiles();
+        } else if (e.key === ',') {
+          e.preventDefault();
+          switchView('settings', document.querySelectorAll('.activity-item')[1]);
+        } else if (e.key === '`') {
+          e.preventDefault();
+          togglePanel();
+        } else if (e.key === 'c' && e.shiftKey) {
+          e.preventDefault();
+          startConversion();
+        }
+      }
+    });
+
+    // Conversion functionality
+    let isConverting = false;
+
+    function updateConvertButton() {
+      const btn = document.getElementById('convert-btn');
+      if (!btn) return;
+      
+      btn.disabled = selectedFiles.length === 0 || isConverting;
+      
+      if (isConverting) {
+        btn.innerHTML = `
+          <svg class="icon" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="10"></circle>
+            <path d="M12 6v6l4 2"></path>
+          </svg>
+          Converting...
+        `;
+      } else {
+        btn.innerHTML = `
+          <svg class="icon" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polygon points="10 8 16 12 10 16 10 8"></polygon>
+          </svg>
+          Start Conversion (${selectedFiles.length})
+        `;
+      }
+    }
+
+    window.startConversion = async function startConversion() {
+      if (isConverting || selectedFiles.length === 0) return;
+      
+      isConverting = true;
+      updateConvertButton();
+      
+      // Switch to output panel
+      const outputTab = document.querySelector('.panel-tab');
+      if (outputTab) {
+        switchPanelTab('output', outputTab);
+      }
+      
+      // Expand panel if collapsed
+      const panel = document.getElementById('panel');
+      if (panel && panel.classList.contains('collapsed')) {
+        panel.classList.remove('collapsed');
+      }
+      
+      clearPanel();
+      logMessage('Starting batch conversion...', 'info');
+      
+      // Collect settings
+      const settings = {
+        videoFormat: document.getElementById('video-format')?.value || 'mp4',
+        videoCodec: document.getElementById('video-codec')?.value || 'libx264',
+        videoCrf: document.getElementById('video-crf')?.value || '23',
+        videoResolution: document.getElementById('video-resolution')?.value || '',
+        videoFps: document.getElementById('video-fps')?.value || '',
+        videoPreset: document.getElementById('video-preset')?.value || 'medium',
+        audioCodec: document.getElementById('audio-codec')?.value || 'aac',
+        audioBitrate: document.getElementById('audio-bitrate')?.value || '192',
+        audioSamplerate: document.getElementById('audio-samplerate')?.value || '',
+        audioChannels: document.getElementById('audio-channels')?.value || '',
+        subtitleMode: document.getElementById('subtitle-mode')?.value || 'copy',
+        outputFolder: document.getElementById('output-folder')?.value || '',
+        namingPattern: document.getElementById('naming-pattern')?.value || 'original',
+        hwAccel: document.getElementById('hw-accel')?.value || ''
+      };
+      
+      // Convert each file
+      for (let i = 0; i < selectedFiles.length; i++) {
+        const file = selectedFiles[i];
+        const filename = file.split(/[/\\]/).pop();
+        
+        logMessage(`[${i + 1}/${selectedFiles.length}] Converting: ${filename}`, 'info');
+        
+        try {
+          const result = await window.electronAPI.convertFile(file, settings, i);
+          
+          if (result.success) {
+            logMessage(`✓ Success: ${result.output}`, 'success');
+            const statusDot = document.getElementById(`status-${i}`);
+            if (statusDot) {
+              statusDot.classList.remove('processing');
+              statusDot.classList.add('success');
+            }
+          } else {
+            logMessage(`✗ Error: ${result.error}`, 'error');
+            
+            // Add to Problems tab with solution
+            const solution = getSolutionForError(result.error);
+            addProblem(filename, 'error', result.error, solution);
+            
+            const statusDot = document.getElementById(`status-${i}`);
+            if (statusDot) {
+              statusDot.classList.remove('processing');
+              statusDot.classList.add('error');
+            }
+          }
+        } catch (error) {
+          logMessage(`✗ Unexpected error: ${error.message}`, 'error');
+          
+          // Add to Problems tab
+          const solution = getSolutionForError(error.message);
+          addProblem(filename, 'error', error.message, solution);
+        }
+      }
+      
+      logMessage('\\n✓ Batch conversion complete!', 'success');
+      isConverting = false;
+      updateConvertButton();
+    }
+  </script>
+
 </body>
 </html>

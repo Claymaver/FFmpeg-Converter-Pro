@@ -1,22 +1,127 @@
-name: Create Release
+name: Release Build
 
 on:
-  push:
-    tags:
-      - 'v*'
+  # Trigger manually from Actions tab
   workflow_dispatch:
-
-permissions:
-  contents: write
+    inputs:
+      version:
+        description: 'Release version (e.g., 2.0.0)'
+        required: true
+        type: string
+      prerelease:
+        description: 'Mark as pre-release'
+        required: false
+        type: boolean
+        default: false
 
 jobs:
-  build:
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+      release_id: ${{ steps.create_release.outputs.id }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ inputs.version }}
+          release_name: FFmpeg Converter Pro v${{ inputs.version }}
+          body: |
+            # FFmpeg Converter Pro v${{ inputs.version }}
+            
+            ## 📦 Downloads
+            
+            ### Windows
+            - **Setup (64-bit)**: Recommended for most users
+            - **Setup (32-bit)**: For older 32-bit Windows systems
+            - **Portable**: No installation required, run from USB drive
+            
+            ### macOS
+            - **Universal DMG**: Works on both Intel and Apple Silicon Macs (Recommended)
+            - **Intel DMG**: Intel Macs only
+            - **Apple Silicon DMG**: M1/M2/M3 Macs only
+            
+            ### Linux
+            - **AppImage**: Works on all distributions (Recommended)
+            - **DEB**: Debian, Ubuntu, Linux Mint, Pop!_OS
+            - **RPM**: Fedora, RHEL, CentOS, openSUSE
+            
+            ## 🚀 Installation
+            
+            ### Windows
+            1. Download the Setup.exe file
+            2. Run the installer
+            3. Follow the installation wizard
+            
+            ### macOS
+            1. Download the .dmg file
+            2. Open the DMG
+            3. Drag the app to Applications
+            4. First run: Right-click → Open
+            
+            ### Linux
+            ```bash
+            # AppImage
+            chmod +x FFmpeg-Converter-Pro*.AppImage
+            ./FFmpeg-Converter-Pro*.AppImage
+            
+            # DEB
+            sudo apt install ./ffmpeg-converter-pro*.deb
+            
+            # RPM
+            sudo dnf install ./ffmpeg-converter-pro*.rpm
+            ```
+            
+            ## ✨ What's New
+            
+            - Initial release with VS Code-inspired interface
+            - Professional video conversion powered by FFmpeg
+            - Batch processing support
+            - Real-time progress tracking
+            - Problems tab with helpful error solutions
+            - Beautiful About dialog
+            - Keyboard shortcuts
+            - Cross-platform support
+            
+            ## ⚠️ Requirements
+            
+            - **FFmpeg must be installed** on your system
+            - Windows 10/11, macOS 10.13+, or modern Linux
+            
+            ## 📝 Checksums
+            
+            See assets below for SHA256 checksums.
+          draft: false
+          prerelease: ${{ inputs.prerelease }}
+  
+  build-and-upload:
     name: Build ${{ matrix.os }}
+    needs: create-release
     runs-on: ${{ matrix.os }}
     
     strategy:
+      fail-fast: false
       matrix:
-        os: [windows-latest, ubuntu-latest, macos-latest]
+        include:
+          - os: windows-latest
+            platform: windows
+            build_command: npm run build:win-all
+          
+          - os: macos-latest
+            platform: macos
+            build_command: npm run build:mac-universal
+          
+          - os: ubuntu-latest
+            platform: linux
+            build_command: npm run build:linux-all
     
     steps:
       - name: Checkout code
@@ -26,75 +131,175 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
       
       - name: Install dependencies
-        run: npm install
+        run: npm ci
       
-      - name: Build Windows
-        if: matrix.os == 'windows-latest'
-        run: npm run build:win
+      - name: Install Linux build dependencies
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fakeroot dpkg rpm
       
-      - name: Build macOS
-        if: matrix.os == 'macos-latest'
-        run: npm run build:mac
+      - name: Build application
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ${{ matrix.build_command }}
       
-      - name: Build Linux
-        if: matrix.os == 'ubuntu-latest'
-        run: npm run build:linux
+      - name: Generate checksums (Windows)
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          Get-ChildItem dist/*.exe | ForEach-Object {
+            $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash
+            "$hash  $($_.Name)" | Out-File -Append checksums-windows.txt -Encoding ASCII
+          }
+          Get-Content checksums-windows.txt
       
-      - name: Upload Windows artifacts
-        if: matrix.os == 'windows-latest'
-        uses: actions/upload-artifact@v4
+      - name: Generate checksums (macOS/Linux)
+        if: matrix.platform != 'windows'
+        run: |
+          cd dist
+          shasum -a 256 * > ../checksums-${{ matrix.platform }}.txt
+          cat ../checksums-${{ matrix.platform }}.txt
+      
+      - name: Upload Windows x64 Setup to Release
+        if: matrix.platform == 'windows'
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          name: windows-installer
-          path: |
-            dist/*.exe
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: dist/FFmpeg Converter Pro-${{ inputs.version }}-x64-Setup.exe
+          asset_name: FFmpeg-Converter-Pro-${{ inputs.version }}-x64-Setup.exe
+          asset_content_type: application/octet-stream
       
-      - name: Upload macOS artifacts
-        if: matrix.os == 'macos-latest'
-        uses: actions/upload-artifact@v4
+      - name: Upload Windows ia32 Setup to Release
+        if: matrix.platform == 'windows'
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          name: macos-installers
-          path: |
-            dist/*.dmg
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: dist/FFmpeg Converter Pro-${{ inputs.version }}-ia32-Setup.exe
+          asset_name: FFmpeg-Converter-Pro-${{ inputs.version }}-ia32-Setup.exe
+          asset_content_type: application/octet-stream
+        continue-on-error: true
       
-      - name: Upload Linux artifacts
-        if: matrix.os == 'ubuntu-latest'
-        uses: actions/upload-artifact@v4
+      - name: Upload Windows Portable to Release
+        if: matrix.platform == 'windows'
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          name: linux-installers
-          path: |
-            dist/*.AppImage
-            dist/*.deb
-            dist/*.rpm
-
-  release:
-    name: Create Release
-    needs: build
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: dist/FFmpeg Converter Pro-${{ inputs.version }}-x64-Portable.exe
+          asset_name: FFmpeg-Converter-Pro-${{ inputs.version }}-Portable.exe
+          asset_content_type: application/octet-stream
+        continue-on-error: true
       
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
+      - name: Upload Windows Checksums to Release
+        if: matrix.platform == 'windows'
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          path: artifacts
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: checksums-windows.txt
+          asset_name: checksums-windows.txt
+          asset_content_type: text/plain
       
-      - name: Display structure
-        run: ls -R artifacts
-      
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
+      - name: Upload macOS Universal DMG to Release
+        if: matrix.platform == 'macos'
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          files: |
-            artifacts/windows-installer/*
-            artifacts/macos-installers/*
-            artifacts/linux-installers/*
-          draft: false
-          prerelease: false
-          generate_release_notes: true
-          token: ${{ secrets.GITHUB_TOKEN }}
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: dist/FFmpeg Converter Pro-${{ inputs.version }}-universal.dmg
+          asset_name: FFmpeg-Converter-Pro-${{ inputs.version }}-universal.dmg
+          asset_content_type: application/octet-stream
+        continue-on-error: true
+      
+      - name: Upload macOS x64 DMG to Release
+        if: matrix.platform == 'macos'
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: dist/FFmpeg Converter Pro-${{ inputs.version }}-x64.dmg
+          asset_name: FFmpeg-Converter-Pro-${{ inputs.version }}-x64.dmg
+          asset_content_type: application/octet-stream
+        continue-on-error: true
+      
+      - name: Upload macOS arm64 DMG to Release
+        if: matrix.platform == 'macos'
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: dist/FFmpeg Converter Pro-${{ inputs.version }}-arm64.dmg
+          asset_name: FFmpeg-Converter-Pro-${{ inputs.version }}-arm64.dmg
+          asset_content_type: application/octet-stream
+        continue-on-error: true
+      
+      - name: Upload macOS Checksums to Release
+        if: matrix.platform == 'macos'
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: checksums-macos.txt
+          asset_name: checksums-macos.txt
+          asset_content_type: text/plain
+      
+      - name: Upload Linux AppImage to Release
+        if: matrix.platform == 'linux'
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: dist/FFmpeg Converter Pro-${{ inputs.version }}-x64.AppImage
+          asset_name: FFmpeg-Converter-Pro-${{ inputs.version }}.AppImage
+          asset_content_type: application/octet-stream
+        continue-on-error: true
+      
+      - name: Upload Linux DEB to Release
+        if: matrix.platform == 'linux'
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: dist/ffmpeg-converter-pro_${{ inputs.version }}_amd64.deb
+          asset_name: ffmpeg-converter-pro_${{ inputs.version }}_amd64.deb
+          asset_content_type: application/octet-stream
+        continue-on-error: true
+      
+      - name: Upload Linux RPM to Release
+        if: matrix.platform == 'linux'
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: dist/ffmpeg-converter-pro-${{ inputs.version }}.x86_64.rpm
+          asset_name: ffmpeg-converter-pro-${{ inputs.version }}.x86_64.rpm
+          asset_content_type: application/octet-stream
+        continue-on-error: true
+      
+      - name: Upload Linux Checksums to Release
+        if: matrix.platform == 'linux'
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: checksums-linux.txt
+          asset_name: checksums-linux.txt
+          asset_content_type: text/plain

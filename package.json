@@ -5,86 +5,204 @@
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
-    "dev": "electron . --dev",
+    "dev": "electron . --enable-logging",
+    "clean": "rm -rf node_modules package-lock.json",
+    "fresh": "npm run clean && npm install",
     "build": "electron-builder",
-    "build:win": "electron-builder --win",
+    "build:win": "electron-builder --win --x64",
+    "build:win32": "electron-builder --win --ia32",
+    "build:win-all": "electron-builder --win --x64 --ia32",
     "build:mac": "electron-builder --mac",
-    "build:mac-arm": "electron-builder --mac --arm64",
     "build:mac-intel": "electron-builder --mac --x64",
+    "build:mac-arm": "electron-builder --mac --arm64",
+    "build:mac-universal": "electron-builder --mac --universal",
     "build:linux": "electron-builder --linux",
+    "build:linux-deb": "electron-builder --linux deb",
+    "build:linux-appimage": "electron-builder --linux AppImage",
+    "build:linux-all": "electron-builder --linux deb AppImage rpm",
     "build:all": "electron-builder --win --mac --linux",
-    "dist": "electron-builder"
+    "dist": "npm run build:all",
+    "pack": "electron-builder --dir",
+    "postinstall": "electron-builder install-app-deps"
   },
-  "keywords": ["ffmpeg", "video", "converter", "electron"],
-  "author": "Clay MacDonald",
+  "keywords": [
+    "ffmpeg",
+    "video",
+    "converter",
+    "media",
+    "transcoding"
+  ],
+  "author": {
+    "name": "Clay MacDonald",
+    "email": "Claymaver@proton.me"
+  },
   "license": "MIT",
-  "devDependencies": {
-    "electron": "^28.0.0",
-    "electron-builder": "^24.13.3"
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Claymaver/ffmpeg-converter-pro"
   },
-  "dependencies": {
-    "fluent-ffmpeg": "^2.1.2"
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "dependencies": {},
+  "engines": {
+    "node": ">=18.0.0"
   },
   "build": {
-    "appId": "com.ffmpegconverter.app",
+    "appId": "com.clay.ffmpeg-converter-pro",
     "productName": "FFmpeg Converter Pro",
-    "directories": {
-      "output": "dist"
-    },
+    "copyright": "Copyright © 2026 Clay MacDonald. All rights reserved.",
+    "compression": "normal",
+    "asar": true,
     "files": [
       "src/**/*",
-      "node_modules/**/*",
       "package.json"
     ],
+    "extraFiles": [
+      {
+        "from": "build/",
+        "to": "resources/",
+        "filter": ["**/*"]
+      }
+    ],
+    "directories": {
+      "buildResources": "build",
+      "output": "dist"
+    },
     "win": {
       "target": [
         {
           "target": "nsis",
           "arch": ["x64", "ia32"]
+        },
+        {
+          "target": "portable",
+          "arch": ["x64"]
         }
       ],
-      "icon": "build/icon.ico"
+      "icon": "build/icon.ico",
+      "artifactName": "${productName}-${version}-${arch}-Setup.${ext}",
+      "publisherName": "Clay MacDonald",
+      "verifyUpdateCodeSignature": false,
+      "requestedExecutionLevel": "asInvoker"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "FFmpeg Converter Pro"
+      "shortcutName": "FFmpeg Converter Pro",
+      "license": "LICENSE",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico",
+      "deleteAppDataOnUninstall": false,
+      "runAfterFinish": true,
+      "menuCategory": true
+    },
+    "portable": {
+      "artifactName": "${productName}-${version}-${arch}-Portable.${ext}"
     },
     "mac": {
       "target": [
         {
           "target": "dmg",
-          "arch": ["x64", "arm64"]
+          "arch": ["x64", "arm64", "universal"]
+        },
+        {
+          "target": "zip",
+          "arch": ["x64", "arm64", "universal"]
         }
       ],
-      "category": "public.app-category.video",
       "icon": "build/icon.icns",
+      "category": "public.app-category.video",
+      "artifactName": "${productName}-${version}-${arch}.${ext}",
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
       "entitlements": "build/entitlements.mac.plist",
-      "entitlementsInherit": "build/entitlements.mac.plist"
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "extendInfo": {
+        "NSCameraUsageDescription": "This app does not use the camera",
+        "NSMicrophoneUsageDescription": "This app does not use the microphone"
+      }
     },
     "dmg": {
-      "title": "FFmpeg Converter Pro",
-      "icon": "build/icon.icns"
+      "contents": [
+        {
+          "x": 130,
+          "y": 220
+        },
+        {
+          "x": 410,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ],
+      "title": "${productName} ${version}",
+      "icon": "build/icon.icns",
+      "background": "build/background.png",
+      "window": {
+        "width": 540,
+        "height": 380
+      }
     },
     "linux": {
       "target": [
-        "AppImage",
-        "deb",
-        "rpm"
+        {
+          "target": "AppImage",
+          "arch": ["x64"]
+        },
+        {
+          "target": "deb",
+          "arch": ["x64"]
+        },
+        {
+          "target": "rpm",
+          "arch": ["x64"]
+        }
       ],
-      "category": "AudioVideo",
-      "icon": "build/icon.png",
-      "maintainer": "Claymaver@proton.me"
+      "icon": "build/icons",
+      "category": "AudioVideo;Video;AudioVideoEditing",
+      "artifactName": "${productName}-${version}-${arch}.${ext}",
+      "synopsis": "Professional FFmpeg Video Converter",
+      "description": "A professional, easy-to-use video converter powered by FFmpeg with a modern interface.",
+      "desktop": {
+        "Name": "FFmpeg Converter Pro",
+        "Comment": "Convert video files with FFmpeg",
+        "GenericName": "Video Converter",
+        "Keywords": "video;converter;ffmpeg;media;transcoding",
+        "Categories": "AudioVideo;Video;AudioVideoEditing",
+        "StartupNotify": "true"
+      }
+    },
+    "appImage": {
+      "license": "LICENSE",
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
     },
     "deb": {
-      "depends": ["ffmpeg"]
+      "depends": [
+        "gconf2",
+        "gconf-service",
+        "libnotify4",
+        "libappindicator1",
+        "libxtst6",
+        "libnss3"
+      ],
+      "priority": "optional",
+      "afterInstall": "build/linux-after-install.sh",
+      "afterRemove": "build/linux-after-remove.sh"
     },
     "rpm": {
-      "depends": ["ffmpeg"]
+      "depends": [
+        "libXScrnSaver",
+        "libappindicator",
+        "libnotify"
+      ],
+      "fpm": [
+        "--rpm-rpmbuild-define=_build_id_links none"
+      ]
     }
   }
 }

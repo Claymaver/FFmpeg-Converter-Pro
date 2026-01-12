@@ -2,33 +2,32 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
   // File selection
-  selectFolder: () => ipcRenderer.invoke('select-folder'),
   selectFiles: () => ipcRenderer.invoke('select-files'),
-  scanFolder: (path, recursive) => ipcRenderer.invoke('scan-folder', path, recursive),
+  selectFolder: () => ipcRenderer.invoke('select-folder'),
+  selectFile: (title) => ipcRenderer.invoke('select-file', title),
   
-  // FFmpeg operations
-  checkFFmpeg: () => ipcRenderer.invoke('check-ffmpeg'),
-  installFFmpeg: () => ipcRenderer.invoke('install-ffmpeg'),
-  setFFmpegPath: () => ipcRenderer.invoke('set-ffmpeg-path'),
-  probeFile: (filePath) => ipcRenderer.invoke('probe-file', filePath),
-  convertFile: (filePath, settings) => ipcRenderer.invoke('convert-file', filePath, settings),
+  // Conversion
+  convertFile: (inputPath, settings, fileIndex) => ipcRenderer.invoke('convert-file', inputPath, settings, fileIndex),
+  onConversionProgress: (callback) => ipcRenderer.on('conversion-progress', (event, data) => callback(data)),
   
-  // Dialogs
-  showError: (message) => ipcRenderer.invoke('show-error', message),
-  showInfo: (title, message) => ipcRenderer.invoke('show-info', title, message),
+  // FFmpeg
+  checkFFmpegStatus: () => ipcRenderer.invoke('check-ffmpeg-status'),
+  testFFmpeg: (customPath) => ipcRenderer.invoke('test-ffmpeg', customPath),
   
-  // Event listeners
-  onConversionProgress: (callback) => {
-    ipcRenderer.on('conversion-progress', (event, data) => callback(data));
-  },
+  // Presets
+  savePresets: (presets) => ipcRenderer.invoke('save-presets', presets),
+  loadPresets: () => ipcRenderer.invoke('load-presets'),
   
-  onConversionLog: (callback) => {
-    ipcRenderer.on('conversion-log', (event, message) => callback(message));
-  },
+  // Settings
+  saveSettings: (settings) => ipcRenderer.invoke('save-settings', settings),
+  loadSettings: () => ipcRenderer.invoke('load-settings'),
   
-  removeAllListeners: (channel) => {
-    ipcRenderer.removeAllListeners(channel);
-  }
+  // External links
+  openExternal: (url) => ipcRenderer.invoke('open-external', url),
+  
+  // Window controls
+  windowMinimize: () => ipcRenderer.invoke('window-minimize'),
+  windowMaximize: () => ipcRenderer.invoke('window-maximize'),
+  windowClose: () => ipcRenderer.invoke('window-close'),
+  windowIsMaximized: () => ipcRenderer.invoke('window-is-maximized')
 });
-
-console.log('Preload script loaded successfully');

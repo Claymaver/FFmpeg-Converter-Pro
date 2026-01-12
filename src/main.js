@@ -1,15 +1,12 @@
-const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const https = require('https');
-const { execSync, exec } = require('child_process');
-const ffmpeg = require('fluent-ffmpeg');
+const { spawn, execSync } = require('child_process');
 
 let mainWindow;
-let isConverting = false;
 let ffmpegPath = null;
 let ffprobePath = null;
-let currentFileProgress = null;
+let userDataPath;
 
 // Find FFmpeg in system
 function findSystemFFmpeg() {
@@ -56,33 +53,13 @@ function findSystemFFmpeg() {
 }
 
 function findSystemFFprobe() {
-  const possiblePaths = [];
+  if (!ffmpegPath) return null;
   
-  if (process.platform === 'win32') {
-    possiblePaths.push(
-      'C:\\ffmpeg\\bin\\ffprobe.exe',
-      'C:\\Program Files\\ffmpeg\\bin\\ffprobe.exe',
-      path.join(process.env.PROGRAMFILES || 'C:\\Program Files', 'ffmpeg', 'bin', 'ffprobe.exe'),
-      path.join(process.env['PROGRAMFILES(X86)'] || 'C:\\Program Files (x86)', 'ffmpeg', 'bin', 'ffprobe.exe')
-    );
-  } else if (process.platform === 'darwin') {
-    possiblePaths.push(
-      '/usr/local/bin/ffprobe',
-      '/opt/homebrew/bin/ffprobe',
-      '/usr/bin/ffprobe'
-    );
-  } else {
-    possiblePaths.push(
-      '/usr/bin/ffprobe',
-      '/usr/local/bin/ffprobe',
-      '/snap/bin/ffprobe'
-    );
-  }
-
-  for (const testPath of possiblePaths) {
-    if (fs.existsSync(testPath)) {
-      return testPath;
-    }
+  const ffprobeExe = process.platform === 'win32' ? 'ffprobe.exe' : 'ffprobe';
+  const ffprobePath = path.join(path.dirname(ffmpegPath), ffprobeExe);
+  
+  if (fs.existsSync(ffprobePath)) {
+    return ffprobePath;
   }
 
   try {
@@ -98,58 +75,619 @@ function findSystemFFprobe() {
   return null;
 }
 
-function initializeFFmpeg() {
-  ffmpegPath = findSystemFFmpeg();
-  ffprobePath = findSystemFFprobe();
-
-  if (ffmpegPath) {
-    ffmpeg.setFfmpegPath(ffmpegPath);
-    console.log('✓ Found FFmpeg:', ffmpegPath);
-  } else {
-    console.log('✗ FFmpeg not found on system');
-  }
-
-  if (ffprobePath) {
-    ffmpeg.setFfprobePath(ffprobePath);
-    console.log('✓ Found FFprobe:', ffprobePath);
-  } else {
-    console.log('✗ FFprobe not found on system');
-  }
+// Sanitize filename
+function sanitizeFilename(filename) {
+  return filename
+    .replace(/[<>:"|?*\x00-\x1F]/g, '_') // Replace invalid chars
+    .replace(/\s+/g, '_') // Replace spaces
+    .replace(/_{2,}/g, '_') // Remove duplicate underscores
+    .replace(/^_+|_+$/g, '') // Remove leading/trailing underscores
+    .substring(0, 200); // Limit length
 }
 
+// Validate file path
+function isValidFilePath(filePath) {
+  // Check for invalid characters
+  const invalidChars = /[<>"|?*\x00-\x1F]/;
+  if (invalidChars.test(filePath)) {
+    return { valid: false, reason: 'Contains invalid characters: < > : " | ? *' };
+  }
+  
+  // Check path length
+  if (filePath.length > 255) {
+    return { valid: false, reason: `Path too long (${filePath.length} chars, max 255)` };
+  }
+  
+  // Check if file exists
+  if (!fs.existsSync(filePath)) {
+    return { valid: false, reason: 'File does not exist' };
+  }
+  
+  return { valid: true };
+}
+
+// Generate output filename based on naming pattern
+function generateOutputFilename(inputPath, settings, format) {
+  const parsedPath = path.parse(inputPath);
+  const baseName = parsedPath.name;
+  const ext = format || parsedPath.ext.substring(1);
+  
+  let newName = baseName;
+  const now = new Date();
+  const date = now.toISOString().split('T')[0];
+  const time = now.toTimeString().split(' ')[0].replace(/:/g, '');
+  
+  switch (settings.namingPattern) {
+    case 'clean':
+      newName = sanitizeFilename(baseName);
+      break;
+      
+    case 'prefix':
+      newName = (settings.filenamePrefix || 'converted_') + baseName;
+      break;
+      
+    case 'suffix':
+      newName = baseName + (settings.filenameSuffix || '_converted');
+      break;
+      
+    case 'custom':
+      newName = (settings.customNamingPattern || '{name}')
+        .replace('{name}', baseName)
+        .replace('{date}', date)
+        .replace('{time}', time)
+        .replace('{format}', ext)
+        .replace('{codec}', settings.videoCodec || 'unknown')
+        .replace('{resolution}', settings.videoResolution || 'original');
+      break;
+      
+    default: // 'original'
+      newName = baseName;
+  }
+  
+  // Clean if requested
+  if (settings.cleanFilename) {
+    newName = sanitizeFilename(newName);
+  }
+  
+  return newName + '.' + ext;
+}
+
+// Get output path
+function getOutputPath(inputPath, settings, format) {
+  const parsedPath = path.parse(inputPath);
+  const outputFilename = generateOutputFilename(inputPath, settings, format);
+  
+  let outputDir;
+  
+  if (settings.replaceOriginal) {
+    outputDir = parsedPath.dir;
+  } else if (settings.outputFolder) {
+    outputDir = settings.outputFolder;
+  } else {
+    // Default: create "converted" subfolder
+    outputDir = path.join(parsedPath.dir, 'converted');
+  }
+  
+  // Create output directory if it doesn't exist
+  if (!fs.existsSync(outputDir)) {
+    fs.mkdirSync(outputDir, { recursive: true });
+  }
+  
+  return path.join(outputDir, outputFilename);
+}
+
+// Build FFmpeg arguments
+function buildFFmpegArgs(inputPath, outputPath, settings) {
+  const args = ['-i', inputPath];
+  
+  // Hardware acceleration
+  if (settings.hwAccel && settings.hwAccel !== '') {
+    if (settings.hwAccel === 'auto') {
+      args.push('-hwaccel', 'auto');
+    } else if (settings.hwAccel === 'nvenc') {
+      args.push('-hwaccel', 'cuda');
+    } else if (settings.hwAccel === 'qsv') {
+      args.push('-hwaccel', 'qsv');
+    } else if (settings.hwAccel === 'amf') {
+      args.push('-hwaccel', 'dxva2');
+    } else if (settings.hwAccel === 'videotoolbox') {
+      args.push('-hwaccel', 'videotoolbox');
+    }
+  }
+  
+  // Thread count
+  if (settings.threadCount && settings.threadCount !== '') {
+    args.push('-threads', settings.threadCount);
+  }
+  
+  // === VIDEO SETTINGS ===
+  if (settings.videoCodec && settings.videoCodec !== 'none') {
+    args.push('-c:v', settings.videoCodec);
+    
+    if (settings.videoCodec !== 'copy') {
+      // Quality/Bitrate
+      if (settings.videoQualityMode === 'crf' && settings.videoCrf) {
+        args.push('-crf', settings.videoCrf);
+      } else if (settings.videoQualityMode === 'bitrate' && settings.videoBitrate) {
+        args.push('-b:v', settings.videoBitrate + 'k');
+      }
+      
+      // Preset
+      if (settings.videoPreset && ['libx264', 'libx265'].includes(settings.videoCodec)) {
+        args.push('-preset', settings.videoPreset);
+      }
+      
+      // Resolution
+      if (settings.videoResolution && settings.videoResolution !== '') {
+        if (settings.videoResolution === 'custom' && settings.customResolution) {
+          args.push('-s', settings.customResolution);
+        } else {
+          args.push('-s', settings.videoResolution);
+        }
+      }
+      
+      // FPS
+      if (settings.videoFps && settings.videoFps !== '') {
+        args.push('-r', settings.videoFps);
+      }
+      
+      // Pixel format
+      if (settings.videoPixfmt && settings.videoPixfmt !== '') {
+        args.push('-pix_fmt', settings.videoPixfmt);
+      }
+      
+      // Aspect ratio
+      if (settings.videoAspect && settings.videoAspect !== '') {
+        args.push('-aspect', settings.videoAspect);
+      }
+      
+      // GOP size
+      if (settings.videoGop && settings.videoGop !== '') {
+        args.push('-g', settings.videoGop);
+      }
+      
+      // B-frames
+      if (settings.videoBframes && settings.videoBframes !== '') {
+        args.push('-bf', settings.videoBframes);
+      }
+      
+      // Video filters
+      if (settings.videoFilters && settings.videoFilters !== '') {
+        args.push('-vf', settings.videoFilters);
+      }
+    }
+  } else {
+    args.push('-vn'); // No video
+  }
+  
+  // === AUDIO SETTINGS ===
+  if (settings.audioCodec && settings.audioCodec !== 'none') {
+    args.push('-c:a', settings.audioCodec);
+    
+    if (settings.audioCodec !== 'copy') {
+      // Bitrate
+      if (settings.audioBitrate && settings.audioBitrate !== '') {
+        args.push('-b:a', settings.audioBitrate + 'k');
+      }
+      
+      // Sample rate
+      if (settings.audioSamplerate && settings.audioSamplerate !== '') {
+        args.push('-ar', settings.audioSamplerate);
+      }
+      
+      // Channels
+      if (settings.audioChannels && settings.audioChannels !== '') {
+        args.push('-ac', settings.audioChannels);
+      }
+      
+      // Quality
+      if (settings.audioQuality && settings.audioQuality !== '') {
+        args.push('-q:a', settings.audioQuality);
+      }
+      
+      // Volume
+      if (settings.audioVolume && settings.audioVolume !== '100') {
+        const volumeFilter = `volume=${parseFloat(settings.audioVolume) / 100}`;
+        if (settings.audioFilters) {
+          args.push('-af', `${volumeFilter},${settings.audioFilters}`);
+        } else {
+          args.push('-af', volumeFilter);
+        }
+      } else if (settings.audioFilters && settings.audioFilters !== '') {
+        args.push('-af', settings.audioFilters);
+      }
+      
+      // Normalization
+      if (settings.audioNormalize && settings.audioNormalize !== '') {
+        const currentAf = args.indexOf('-af');
+        if (currentAf !== -1) {
+          args[currentAf + 1] += ',' + settings.audioNormalize;
+        } else {
+          args.push('-af', settings.audioNormalize);
+        }
+      }
+    }
+    
+    // Audio stream selection
+    if (settings.audioStream && settings.audioStream !== '') {
+      args.push('-map', `0:a:${settings.audioStream}`);
+    }
+  } else {
+    args.push('-an'); // No audio
+  }
+  
+  // === SUBTITLE SETTINGS ===
+  if (settings.subtitleMode === 'copy') {
+    args.push('-c:s', 'copy');
+  } else if (settings.subtitleMode === 'none') {
+    args.push('-sn');
+  } else if (settings.subtitleMode === 'select') {
+    if (settings.subtitleStream && settings.subtitleStream !== '') {
+      args.push('-map', `0:s:${settings.subtitleStream}`);
+    }
+    if (settings.subtitleLanguage && settings.subtitleLanguage !== '') {
+      args.push('-metadata:s:s:0', `language=${settings.subtitleLanguage}`);
+    }
+    if (settings.subtitleForced === 'yes') {
+      args.push('-disposition:s:0', 'forced');
+    }
+  } else if (settings.subtitleMode === 'burn' && settings.burnSubtitleFile) {
+    // Burn subtitles into video
+    const subtitlePath = settings.burnSubtitleFile.replace(/\\/g, '/').replace(/:/g, '\\:');
+    let subtitleFilter = `subtitles='${subtitlePath}'`;
+    
+    if (settings.burnSubtitleStyle) {
+      subtitleFilter += `:force_style='${settings.burnSubtitleStyle}'`;
+    }
+    
+    const vfIndex = args.indexOf('-vf');
+    if (vfIndex !== -1) {
+      args[vfIndex + 1] += ',' + subtitleFilter;
+    } else {
+      args.push('-vf', subtitleFilter);
+    }
+    args.push('-sn'); // Remove subtitle streams
+  }
+  
+  // External subtitles
+  if (settings.externalSubtitles && settings.externalSubtitles.length > 0) {
+    settings.externalSubtitles.forEach((sub, index) => {
+      args.push('-i', sub.file);
+      args.push('-map', `${index + 1}:0`);
+      if (sub.language) {
+        args.push(`-metadata:s:s:${index}`, `language=${sub.language}`);
+      }
+      if (sub.title) {
+        args.push(`-metadata:s:s:${index}`, `title=${sub.title}`);
+      }
+    });
+  }
+  
+  // === METADATA SETTINGS ===
+  if (settings.metadataMode === 'strip') {
+    args.push('-map_metadata', '-1');
+  } else if (settings.metadataMode === 'custom') {
+    if (settings.metadataTitle) {
+      args.push('-metadata', `title=${settings.metadataTitle}`);
+    }
+    if (settings.metadataArtist) {
+      args.push('-metadata', `artist=${settings.metadataArtist}`);
+    }
+    if (settings.metadataCopyright) {
+      args.push('-metadata', `copyright=${settings.metadataCopyright}`);
+    }
+    if (settings.metadataComment) {
+      args.push('-metadata', `comment=${settings.metadataComment}`);
+    }
+  }
+  // 'copy' mode is default - no args needed
+  
+  // === CUSTOM ARGUMENTS ===
+  if (settings.customVideoArgs && settings.customVideoArgs.trim() !== '') {
+    args.push(...settings.customVideoArgs.trim().split(/\s+/));
+  }
+  
+  if (settings.customAudioArgs && settings.customAudioArgs.trim() !== '') {
+    args.push(...settings.customAudioArgs.trim().split(/\s+/));
+  }
+  
+  if (settings.globalCustomArgs && settings.globalCustomArgs.trim() !== '') {
+    args.push(...settings.globalCustomArgs.trim().split(/\s+/));
+  }
+  
+  // === OVERWRITE MODE ===
+  if (settings.overwriteMode === 'yes') {
+    args.push('-y');
+  } else if (settings.overwriteMode === 'no') {
+    args.push('-n');
+  }
+  // 'ask' mode is handled before calling FFmpeg
+  
+  // Progress
+  args.push('-progress', 'pipe:1');
+  
+  // Output
+  args.push(outputPath);
+  
+  return args;
+}
+
+// Parse FFmpeg progress output
+function parseProgress(data, duration) {
+  const lines = data.toString().split('\n');
+  const progress = {};
+  
+  lines.forEach(line => {
+    const parts = line.split('=');
+    if (parts.length === 2) {
+      progress[parts[0].trim()] = parts[1].trim();
+    }
+  });
+  
+  if (progress.out_time_ms && duration) {
+    const currentTime = parseInt(progress.out_time_ms) / 1000000; // Convert to seconds
+    const percent = Math.min((currentTime / duration) * 100, 100);
+    
+    return {
+      percent: percent,
+      fps: progress.fps || '0',
+      speed: progress.speed || '0x',
+      time: currentTime,
+      remaining: duration - currentTime
+    };
+  }
+  
+  return null;
+}
+
+// Get video duration using ffprobe
+async function getVideoDuration(filePath) {
+  if (!ffprobePath) return null;
+  
+  return new Promise((resolve) => {
+    const args = [
+      '-v', 'error',
+      '-show_entries', 'format=duration',
+      '-of', 'default=noprint_wrappers=1:nokey=1',
+      filePath
+    ];
+    
+    const process = spawn(ffprobePath, args);
+    let output = '';
+    
+    process.stdout.on('data', (data) => {
+      output += data.toString();
+    });
+    
+    process.on('close', () => {
+      const duration = parseFloat(output.trim());
+      resolve(isNaN(duration) ? null : duration);
+    });
+    
+    process.on('error', () => {
+      resolve(null);
+    });
+  });
+}
+
+// Convert single file
+async function convertFile(inputPath, settings, fileIndex) {
+  return new Promise(async (resolve, reject) => {
+    try {
+      // Validate input file
+      const validation = isValidFilePath(inputPath);
+      if (!validation.valid) {
+        return reject(new Error(`Invalid file: ${validation.reason}`));
+      }
+      
+      // Get output path
+      const outputPath = getOutputPath(inputPath, settings, settings.videoFormat);
+      
+      // Check if output exists and handle based on overwrite mode
+      if (fs.existsSync(outputPath)) {
+        if (settings.overwriteMode === 'no') {
+          return resolve({
+            success: true,
+            output: outputPath,
+            skipped: true,
+            message: 'File already exists (skipped)'
+          });
+        } else if (settings.overwriteMode === 'ask') {
+          // In real app, show dialog - for now, skip
+          return resolve({
+            success: true,
+            output: outputPath,
+            skipped: true,
+            message: 'File already exists (skipped - ask mode)'
+          });
+        }
+      }
+      
+      // Get video duration for progress calculation
+      const duration = await getVideoDuration(inputPath);
+      
+      // Build FFmpeg arguments
+      const args = buildFFmpegArgs(inputPath, outputPath, settings);
+      
+      console.log('FFmpeg command:', ffmpegPath, args.join(' '));
+      
+      // Spawn FFmpeg process
+      const ffmpegProcess = spawn(ffmpegPath, args);
+      
+      let errorOutput = '';
+      
+      // Handle progress
+      ffmpegProcess.stdout.on('data', (data) => {
+        if (duration && mainWindow) {
+          const progress = parseProgress(data, duration);
+          if (progress) {
+            const eta = progress.remaining > 0 
+              ? `${Math.floor(progress.remaining / 60)}m ${Math.floor(progress.remaining % 60)}s`
+              : 'finishing...';
+            
+            mainWindow.webContents.send('conversion-progress', {
+              fileIndex,
+              progress: progress.percent,
+              speed: `${progress.fps} fps`,
+              eta: eta
+            });
+          }
+        }
+      });
+      
+      ffmpegProcess.stderr.on('data', (data) => {
+        errorOutput += data.toString();
+        // Also parse progress from stderr (FFmpeg writes progress there too)
+        if (duration && mainWindow) {
+          const progress = parseProgress(data, duration);
+          if (progress) {
+            const eta = progress.remaining > 0 
+              ? `${Math.floor(progress.remaining / 60)}m ${Math.floor(progress.remaining % 60)}s`
+              : 'finishing...';
+            
+            mainWindow.webContents.send('conversion-progress', {
+              fileIndex,
+              progress: progress.percent,
+              speed: `${progress.fps} fps`,
+              eta: eta
+            });
+          }
+        }
+      });
+      
+      ffmpegProcess.on('close', (code) => {
+        if (code === 0) {
+          // Success
+          if (settings.replaceOriginal && !settings.replaceOriginal) {
+            // If not replacing, we're done
+            resolve({
+              success: true,
+              output: outputPath
+            });
+          } else if (settings.replaceOriginal) {
+            // Replace original file
+            try {
+              fs.unlinkSync(inputPath);
+              fs.renameSync(outputPath, inputPath);
+              resolve({
+                success: true,
+                output: inputPath,
+                replaced: true
+              });
+            } catch (err) {
+              reject(new Error(`Conversion succeeded but failed to replace original: ${err.message}`));
+            }
+          } else {
+            resolve({
+              success: true,
+              output: outputPath
+            });
+          }
+        } else {
+          // Extract meaningful error from FFmpeg output
+          let errorMessage = 'Conversion failed';
+          
+          // Try to find specific error messages
+          if (errorOutput.includes('Invalid data found')) {
+            errorMessage = 'Invalid or corrupted input file';
+          } else if (errorOutput.includes('No such file or directory')) {
+            errorMessage = 'File not found or path contains invalid characters';
+          } else if (errorOutput.includes('Permission denied')) {
+            errorMessage = 'Permission denied - check file/folder permissions';
+          } else if (errorOutput.includes('Encoder') && errorOutput.includes('not found')) {
+            errorMessage = 'Codec not available in this FFmpeg build';
+          } else if (errorOutput.includes('Unknown encoder')) {
+            errorMessage = 'Unknown or unsupported codec';
+          } else {
+            // Try to extract the actual error line
+            const errorLines = errorOutput.split('\n').filter(line => 
+              line.includes('Error') || line.includes('error') || line.includes('failed')
+            );
+            if (errorLines.length > 0) {
+              errorMessage = errorLines[errorLines.length - 1].trim();
+            }
+          }
+          
+          reject(new Error(errorMessage));
+        }
+      });
+      
+      ffmpegProcess.on('error', (err) => {
+        reject(new Error(`Failed to start FFmpeg: ${err.message}`));
+      });
+      
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
+// Create main window
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 1600,
-    height: 1000,
-    minWidth: 1400,
-    minHeight: 900,
+    width: 1400,
+    height: 900,
+    frame: false,  // Remove default frame
+    titleBarStyle: 'hidden',  // Hide title bar on macOS
+    trafficLightPosition: { x: 15, y: 10 },  // macOS traffic lights position
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: path.join(__dirname, 'preload.js')
+      preload: path.join(__dirname, 'preload.js'),
+      devTools: true  // Ensure DevTools are available
     },
-    backgroundColor: '#121212',
-    show: false
+    backgroundColor: '#1e1e1e',  // Match VS Code theme
+    icon: path.join(__dirname, '..', 'build', 'icon.png'),  // Adjusted for src/ folder
+    minWidth: 900,
+    minHeight: 600
   });
 
-  mainWindow.loadFile('src/index.html');
-
-  mainWindow.once('ready-to-show', () => {
-    mainWindow.show();
+  mainWindow.loadFile(path.join(__dirname, 'index.html'));
+  
+  // DevTools can be opened with F12 keyboard shortcut
+  // Uncomment the line below if you need DevTools to open automatically:
+  // mainWindow.webContents.openDevTools();
+  
+  // Add keyboard shortcut for DevTools (F12)
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    if (input.key === 'F12') {
+      mainWindow.webContents.toggleDevTools();
+    }
   });
 
-  if (process.argv.includes('--dev')) {
-    mainWindow.webContents.openDevTools();
-  }
+  // Log any console errors from renderer
+  mainWindow.webContents.on('console-message', (event, level, message, line, sourceId) => {
+    console.log(`[Renderer ${level}] ${message} (${sourceId}:${line})`);
+  });
 
-  mainWindow.on('closed', () => {
-    mainWindow = null;
+  // Catch page load errors
+  mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+    console.error('Failed to load page:', errorCode, errorDescription);
   });
 }
 
+// App ready
 app.whenReady().then(() => {
-  initializeFFmpeg();
+  // Set user data path
+  userDataPath = app.getPath('userData');
+  
+  // Find FFmpeg
+  ffmpegPath = findSystemFFmpeg();
+  ffprobePath = findSystemFFprobe();
+  
+  if (ffmpegPath) {
+    console.log('Found FFmpeg at:', ffmpegPath);
+  } else {
+    console.error('FFmpeg not found!');
+  }
+  
   createWindow();
+  
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) {
+      createWindow();
+    }
+  });
 });
 
 app.on('window-all-closed', () => {
@@ -158,473 +696,227 @@ app.on('window-all-closed', () => {
   }
 });
 
-app.on('activate', () => {
-  if (BrowserWindow.getAllWindows().length === 0) {
-    createWindow();
-  }
-});
+// === IPC HANDLERS ===
 
-// ============================================
-// IPC HANDLERS
-// ============================================
-
-// Install FFmpeg
-ipcMain.handle('install-ffmpeg', async () => {
-  const platform = process.platform;
-  let instructions = '';
-  let canAutoInstall = false;
-
-  if (platform === 'win32') {
-    // Check if winget is available
-    try {
-      execSync('winget --version', { encoding: 'utf8' });
-      canAutoInstall = true;
-    } catch (error) {
-      canAutoInstall = false;
-    }
-
-    if (canAutoInstall) {
-      const result = await dialog.showMessageBox(mainWindow, {
-        type: 'question',
-        title: 'Install FFmpeg',
-        message: 'Would you like to install FFmpeg automatically using winget?',
-        detail: 'This will install FFmpeg to your system using Windows Package Manager.',
-        buttons: ['Install Automatically', 'Manual Instructions', 'Cancel'],
-        defaultId: 0
-      });
-
-      if (result.response === 0) {
-        // Auto install with winget
-        try {
-          mainWindow.webContents.send('conversion-log', 'Installing FFmpeg via winget...');
-          
-          // Run in new cmd window so user can see progress
-          const installCmd = 'start cmd /k "winget install ffmpeg && echo. && echo FFmpeg installed successfully! && echo Please restart the app. && pause"';
-          exec(installCmd);
-          
-          return { 
-            success: true, 
-            message: 'Installation started in new window. Please restart the app when complete.' 
-          };
-        } catch (error) {
-          return { error: `Installation failed: ${error.message}` };
-        }
-      } else if (result.response === 1) {
-        // Show manual instructions
-        instructions = 'Windows Manual Installation:\n\n' +
-          '1. Download FFmpeg from:\n' +
-          '   https://www.gyan.dev/ffmpeg/builds/\n\n' +
-          '2. Extract to C:\\ffmpeg\n\n' +
-          '3. Add C:\\ffmpeg\\bin to System PATH:\n' +
-          '   - Right-click "This PC" → Properties\n' +
-          '   - Advanced system settings → Environment Variables\n' +
-          '   - Under System Variables, find "Path"\n' +
-          '   - Click Edit → New → Add: C:\\ffmpeg\\bin\n' +
-          '   - Click OK on all dialogs\n\n' +
-          '4. Restart this app';
-        
-        await dialog.showMessageBox(mainWindow, {
-          type: 'info',
-          title: 'Manual Installation Instructions',
-          message: instructions,
-          buttons: ['Open Download Page', 'Close']
-        }).then(result => {
-          if (result.response === 0) {
-            shell.openExternal('https://www.gyan.dev/ffmpeg/builds/');
-          }
-        });
-        
-        return { success: true, manual: true };
-      } else {
-        return { canceled: true };
-      }
-    } else {
-      // No winget, show manual instructions
-      instructions = 'Windows Installation:\n\n' +
-        'Option 1 - Install winget (recommended):\n' +
-        '1. Install from Microsoft Store: "App Installer"\n' +
-        '2. Restart this app and try again\n\n' +
-        'Option 2 - Manual:\n' +
-        '1. Download from: https://www.gyan.dev/ffmpeg/builds/\n' +
-        '2. Extract to C:\\ffmpeg\n' +
-        '3. Add C:\\ffmpeg\\bin to System PATH\n' +
-        '4. Restart this app';
-      
-      const result = await dialog.showMessageBox(mainWindow, {
-        type: 'info',
-        title: 'Install FFmpeg',
-        message: instructions,
-        buttons: ['Open Download Page', 'Close']
-      });
-      
-      if (result.response === 0) {
-        shell.openExternal('https://www.gyan.dev/ffmpeg/builds/');
-      }
-      
-      return { success: true, manual: true };
-    }
-  } else if (platform === 'darwin') {
-    // macOS - check for Homebrew
-    let hasHomebrew = false;
-    try {
-      execSync('brew --version', { encoding: 'utf8' });
-      hasHomebrew = true;
-    } catch (error) {
-      hasHomebrew = false;
-    }
-
-    if (hasHomebrew) {
-      const result = await dialog.showMessageBox(mainWindow, {
-        type: 'question',
-        title: 'Install FFmpeg',
-        message: 'Would you like to install FFmpeg using Homebrew?',
-        detail: 'This will run: brew install ffmpeg',
-        buttons: ['Install', 'Cancel'],
-        defaultId: 0
-      });
-
-      if (result.response === 0) {
-        try {
-          mainWindow.webContents.send('conversion-log', 'Installing FFmpeg via Homebrew...');
-          
-          // Open terminal and run brew install
-          const installCmd = 'osascript -e \'tell app "Terminal" to do script "brew install ffmpeg && echo && echo FFmpeg installed! && echo Please restart the app. && read -p \\"Press Enter to close...\\""\'';
-          exec(installCmd);
-          
-          return { 
-            success: true, 
-            message: 'Installation started in Terminal. Please restart the app when complete.' 
-          };
-        } catch (error) {
-          return { error: `Installation failed: ${error.message}` };
-        }
-      }
-      return { canceled: true };
-    } else {
-      instructions = 'macOS Installation:\n\n' +
-        '1. Install Homebrew first:\n' +
-        '   Open Terminal and run:\n' +
-        '   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"\n\n' +
-        '2. Then install FFmpeg:\n' +
-        '   brew install ffmpeg\n\n' +
-        '3. Restart this app';
-      
-      const result = await dialog.showMessageBox(mainWindow, {
-        type: 'info',
-        title: 'Install FFmpeg',
-        message: instructions,
-        buttons: ['Open Homebrew Website', 'Close']
-      });
-      
-      if (result.response === 0) {
-        shell.openExternal('https://brew.sh');
-      }
-      
-      return { success: true, manual: true };
-    }
-  } else {
-    // Linux
-    instructions = 'Linux Installation:\n\n' +
-      'Ubuntu/Debian:\n' +
-      'sudo apt update && sudo apt install ffmpeg\n\n' +
-      'Fedora:\n' +
-      'sudo dnf install ffmpeg\n\n' +
-      'Arch:\n' +
-      'sudo pacman -S ffmpeg\n\n' +
-      'After installation, restart this app.';
-    
-    await dialog.showMessageBox(mainWindow, {
-      type: 'info',
-      title: 'Install FFmpeg',
-      message: instructions,
-      buttons: ['OK']
-    });
-    
-    return { success: true, manual: true };
-  }
+// Select files
+ipcMain.handle('select-files', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openFile', 'multiSelection'],
+    filters: [
+      { name: 'Video Files', extensions: ['mp4', 'avi', 'mkv', 'mov', 'wmv', 'flv', 'webm', 'm4v', 'mpg', 'mpeg'] },
+      { name: 'Audio Files', extensions: ['mp3', 'wav', 'flac', 'aac', 'm4a', 'ogg', 'wma'] },
+      { name: 'All Files', extensions: ['*'] }
+    ]
+  });
+  
+  return result.canceled ? [] : result.filePaths;
 });
 
 // Select folder
 ipcMain.handle('select-folder', async () => {
-  try {
-    const result = await dialog.showOpenDialog(mainWindow, {
-      properties: ['openDirectory']
-    });
-    return result.canceled ? { canceled: true } : { canceled: false, path: result.filePaths[0] };
-  } catch (error) {
-    console.error('Select folder error:', error);
-    return { error: error.message };
-  }
-});
-
-// Select files
-ipcMain.handle('select-files', async () => {
-  try {
-    const result = await dialog.showOpenDialog(mainWindow, {
-      properties: ['openFile', 'multiSelections'],
-      filters: [
-        { name: 'Video Files', extensions: ['mp4', 'mkv', 'avi', 'mov', 'flv', 'wmv', 'webm', 'm4v', 'mpg', 'mpeg'] },
-        { name: 'All Files', extensions: ['*'] }
-      ]
-    });
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openDirectory']
+  });
+  
+  if (result.canceled) return [];
+  
+  // Get all video/audio files in the folder
+  const folderPath = result.filePaths[0];
+  const files = [];
+  
+  function scanDirectory(dir) {
+    const items = fs.readdirSync(dir);
     
-    if (result.canceled) {
-      return { canceled: true };
-    }
-    
-    const filesWithSizes = result.filePaths.map(filePath => {
-      try {
-        const stat = fs.statSync(filePath);
-        return { path: filePath, size: stat.size };
-      } catch (error) {
-        return { path: filePath, size: 0 };
-      }
-    });
-    
-    return { canceled: false, files: filesWithSizes };
-  } catch (error) {
-    console.error('Select files error:', error);
-    return { error: error.message };
-  }
-});
-
-// Scan folder for videos
-ipcMain.handle('scan-folder', async (event, folderPath, recursive) => {
-  try {
-    const videoExtensions = ['.mp4', '.mkv', '.avi', '.mov', '.flv', '.wmv', '.webm', '.m4v', '.mpg', '.mpeg'];
-    const files = [];
-
-    function scanDir(dir) {
-      const items = fs.readdirSync(dir);
-      for (const item of items) {
-        const fullPath = path.join(dir, item);
-        const stat = fs.statSync(fullPath);
-        
-        if (stat.isDirectory() && recursive) {
-          scanDir(fullPath);
-        } else if (stat.isFile()) {
-          const ext = path.extname(item).toLowerCase();
-          if (videoExtensions.includes(ext)) {
-            files.push({ path: fullPath, size: stat.size });
-          }
+    items.forEach(item => {
+      const fullPath = path.join(dir, item);
+      const stat = fs.statSync(fullPath);
+      
+      if (stat.isDirectory()) {
+        scanDirectory(fullPath);
+      } else {
+        const ext = path.extname(item).toLowerCase();
+        if (['.mp4', '.avi', '.mkv', '.mov', '.wmv', '.flv', '.webm', '.m4v', 
+             '.mp3', '.wav', '.flac', '.aac', '.m4a', '.ogg', '.mpg', '.mpeg'].includes(ext)) {
+          files.push(fullPath);
         }
       }
-    }
-
-    scanDir(folderPath);
-    return { files };
-  } catch (error) {
-    console.error('Scan folder error:', error);
-    return { error: error.message };
+    });
   }
-});
-
-// Check FFmpeg
-ipcMain.handle('check-ffmpeg', async () => {
-  // Re-scan in case FFmpeg was just installed
-  initializeFFmpeg();
   
-  return {
-    ffmpegPath,
-    ffprobePath,
-    available: ffmpegPath && ffprobePath && fs.existsSync(ffmpegPath) && fs.existsSync(ffprobePath)
-  };
+  scanDirectory(folderPath);
+  return files;
 });
 
-// Set custom FFmpeg path
-ipcMain.handle('set-ffmpeg-path', async () => {
-  try {
-    const result = await dialog.showOpenDialog(mainWindow, {
-      properties: ['openFile'],
-      title: 'Select FFmpeg Executable',
-      filters: [
-        { name: 'Executable', extensions: process.platform === 'win32' ? ['exe'] : ['*'] }
-      ]
-    });
-
-    if (!result.canceled && result.filePaths[0]) {
-      ffmpegPath = result.filePaths[0];
-      ffmpeg.setFfmpegPath(ffmpegPath);
-      
-      // Try to find ffprobe in same directory
-      const dir = path.dirname(ffmpegPath);
-      const probeName = process.platform === 'win32' ? 'ffprobe.exe' : 'ffprobe';
-      const probePath = path.join(dir, probeName);
-      
-      if (fs.existsSync(probePath)) {
-        ffprobePath = probePath;
-        ffmpeg.setFfprobePath(ffprobePath);
-      }
-      
-      return {
-        success: true,
-        ffmpegPath,
-        ffprobePath
-      };
-    }
-    
-    return { canceled: true };
-  } catch (error) {
-    return { error: error.message };
-  }
-});
-
-// Probe file for track info
-ipcMain.handle('probe-file', async (event, filePath) => {
-  if (!ffprobePath) {
-    return { error: 'FFprobe not available' };
-  }
-
-  return new Promise((resolve) => {
-    ffmpeg.ffprobe(filePath, (err, metadata) => {
-      if (err) {
-        resolve({ error: err.message });
-      } else {
-        resolve({ metadata });
-      }
-    });
+// Select single file
+ipcMain.handle('select-file', async (event, title) => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: title || 'Select File',
+    properties: ['openFile'],
+    filters: [
+      { name: 'All Files', extensions: ['*'] }
+    ]
   });
+  
+  return result.canceled ? null : result.filePaths[0];
 });
 
 // Convert file
-ipcMain.handle('convert-file', async (event, filePath, settings) => {
+ipcMain.handle('convert-file', async (event, inputPath, settings, fileIndex) => {
+  try {
+    const result = await convertFile(inputPath, settings, fileIndex);
+    return result;
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+});
+
+// Check FFmpeg status
+ipcMain.handle('check-ffmpeg-status', async () => {
   if (!ffmpegPath) {
-    return { error: 'FFmpeg not available. Please install FFmpeg.' };
+    return {
+      available: false,
+      version: null
+    };
   }
-
-  if (isConverting) {
-    return { error: 'Conversion already in progress' };
-  }
-
-  return new Promise((resolve) => {
-    isConverting = true;
-    currentFileProgress = 0;
+  
+  try {
+    const version = execSync(`"${ffmpegPath}" -version`, { encoding: 'utf8' });
+    const versionMatch = version.match(/ffmpeg version ([^\s]+)/);
     
-    try {
-      const inputDir = path.dirname(filePath);
-      const inputName = path.basename(filePath, path.extname(filePath));
-      const outputDir = settings.outputToSubfolder 
-        ? path.join(inputDir, 'converted')
-        : inputDir;
-      
-      if (!fs.existsSync(outputDir)) {
-        fs.mkdirSync(outputDir, { recursive: true });
-      }
+    return {
+      available: true,
+      version: versionMatch ? versionMatch[1] : 'Unknown'
+    };
+  } catch (error) {
+    return {
+      available: false,
+      version: null
+    };
+  }
+});
 
-      let outputName = inputName;
-      if (settings.cleanFilenames) {
-        outputName = outputName
-          .replace(/\[.*?\]/g, '')
-          .replace(/\(.*?\)/g, '')
-          .replace(/\d{3,4}p/gi, '')
-          .replace(/[hx]\.?26[45]/gi, '')
-          .replace(/\s+/g, ' ')
-          .trim();
-      }
-
-      const outputPath = path.join(outputDir, `${outputName}.${settings.container}`);
-
-      let command = ffmpeg(filePath);
-
-      // Video codec
-      if (settings.videoCodec === 'copy') {
-        command = command.videoCodec('copy');
-      } else {
-        command = command
-          .videoCodec(settings.videoCodec)
-          .addOption('-crf', settings.crf)
-          .addOption('-preset', settings.preset);
-
-        if (settings.resolution && settings.resolution !== 'original') {
-          command = command.size(`?x${settings.resolution}`);
-        }
-      }
-
-      // Audio codec
-      if (settings.audioCodec === 'copy') {
-        command = command.audioCodec('copy');
-      } else {
-        command = command
-          .audioCodec(settings.audioCodec)
-          .audioBitrate(settings.audioBitrate);
-      }
-
-      // Copy ALL streams
-      command = command.addOption('-map', '0');
-      command = command.addOption('-c:s', 'copy');
-      command = command.addOption('-map_metadata', '0');
-      command = command.addOption('-map_chapters', '0');
-
-      // Execute conversion
-      command
-        .on('start', (commandLine) => {
-          mainWindow.webContents.send('conversion-log', `Starting: ${path.basename(filePath)}`);
-        })
-        .on('progress', (progress) => {
-          currentFileProgress = progress.percent || 0;
-          mainWindow.webContents.send('conversion-progress', {
-            percent: currentFileProgress,
-            currentFps: progress.currentFps,
-            currentKbps: progress.currentKbps,
-            timemark: progress.timemark
-          });
-        })
-        .on('end', () => {
-          mainWindow.webContents.send('conversion-log', `✓ Completed: ${path.basename(outputPath)}`);
-          
-          let outputSize = 0;
-          try {
-            const outputStats = fs.statSync(outputPath);
-            outputSize = outputStats.size;
-          } catch (err) {
-            // Ignore
-          }
-          
-          if (settings.replaceOriginal) {
-            try {
-              fs.unlinkSync(filePath);
-              const newPath = path.join(path.dirname(filePath), `${path.basename(filePath, path.extname(filePath))}.${settings.container}`);
-              fs.renameSync(outputPath, newPath);
-              mainWindow.webContents.send('conversion-log', '✓ Replaced original file');
-            } catch (err) {
-              mainWindow.webContents.send('conversion-log', `⚠ Could not replace original: ${err.message}`);
-            }
-          }
-          
-          isConverting = false;
-          currentFileProgress = null;
-          resolve({ success: true, outputPath, outputSize });
-        })
-        .on('error', (err) => {
-          mainWindow.webContents.send('conversion-log', `✗ Error: ${err.message}`);
-          isConverting = false;
-          currentFileProgress = null;
-          resolve({ error: err.message });
-        })
-        .save(outputPath);
-
-    } catch (error) {
-      isConverting = false;
-      currentFileProgress = null;
-      resolve({ error: error.message });
+// Test FFmpeg
+ipcMain.handle('test-ffmpeg', async (event, customPath) => {
+  const testPath = customPath || ffmpegPath;
+  
+  if (!testPath) {
+    return {
+      success: false,
+      error: 'No FFmpeg path specified'
+    };
+  }
+  
+  try {
+    const version = execSync(`"${testPath}" -version`, { encoding: 'utf8' });
+    const versionMatch = version.match(/ffmpeg version ([^\s]+)/);
+    
+    if (customPath) {
+      ffmpegPath = customPath;
+      ffprobePath = findSystemFFprobe();
     }
-  });
+    
+    return {
+      success: true,
+      version: versionMatch ? versionMatch[1] : 'Unknown'
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message
+    };
+  }
 });
 
-// Show error dialog
-ipcMain.handle('show-error', async (event, message) => {
-  await dialog.showMessageBox(mainWindow, {
-    type: 'error',
-    title: 'Error',
-    message: message
-  });
+// Save presets
+ipcMain.handle('save-presets', async (event, presets) => {
+  try {
+    const presetsPath = path.join(userDataPath, 'presets.json');
+    fs.writeFileSync(presetsPath, JSON.stringify(presets, null, 2));
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
 });
 
-// Show info dialog
-ipcMain.handle('show-info', async (event, title, message) => {
-  await dialog.showMessageBox(mainWindow, {
-    type: 'info',
-    title: title,
-    message: message
-  });
+// Load presets
+ipcMain.handle('load-presets', async () => {
+  try {
+    const presetsPath = path.join(userDataPath, 'presets.json');
+    if (fs.existsSync(presetsPath)) {
+      const data = fs.readFileSync(presetsPath, 'utf8');
+      return JSON.parse(data);
+    }
+    return {};
+  } catch (error) {
+    return {};
+  }
+});
+
+// Save settings
+ipcMain.handle('save-settings', async (event, settings) => {
+  try {
+    const settingsPath = path.join(userDataPath, 'settings.json');
+    fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// Load settings
+ipcMain.handle('load-settings', async () => {
+  try {
+    const settingsPath = path.join(userDataPath, 'settings.json');
+    if (fs.existsSync(settingsPath)) {
+      const data = fs.readFileSync(settingsPath, 'utf8');
+      return JSON.parse(data);
+    }
+    return {};
+  } catch (error) {
+    return {};
+  }
+});
+
+// Open external URL
+ipcMain.handle('open-external', async (event, url) => {
+  const { shell } = require('electron');
+  try {
+    await shell.openExternal(url);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// Window controls
+ipcMain.handle('window-minimize', () => {
+  console.log('Window minimize requested');
+  if (mainWindow) {
+    mainWindow.minimize();
+  }
+});
+
+ipcMain.handle('window-maximize', () => {
+  console.log('Window maximize requested');
+  if (mainWindow) {
+    if (mainWindow.isMaximized()) {
+      mainWindow.unmaximize();
+    } else {
+      mainWindow.maximize();
+    }
+  }
+});
+
+ipcMain.handle('window-close', () => {
+  console.log('Window close requested');
+  if (mainWindow) {
+    mainWindow.close();
+  }
+});
+
+ipcMain.handle('window-is-maximized', () => {
+  return mainWindow ? mainWindow.isMaximized() : false;
 });
