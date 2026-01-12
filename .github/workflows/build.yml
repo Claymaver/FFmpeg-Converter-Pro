@@ -19,29 +19,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          # Windows builds
-          - os: windows-latest
-            platform: windows
-            arch: x64
-            build_command: npm run build:win
-          
-          # macOS builds
-          - os: macos-latest
-            platform: macos
-            arch: x64
-            build_command: npm run build:mac-intel
-          
-          - os: macos-latest
-            platform: macos
-            arch: arm64
-            build_command: npm run build:mac-arm
-          
-          # Linux builds
-          - os: ubuntu-latest
-            platform: linux
-            arch: x64
-            build_command: npm run build:linux-all
+        os: [windows-latest, ubuntu-latest, macos-latest]
     
     steps:
       - name: Checkout code
@@ -57,31 +35,28 @@ jobs:
         run: npm ci
       
       - name: Install Linux build dependencies
-        if: matrix.platform == 'linux'
+        if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
           sudo apt-get install -y fakeroot dpkg rpm
       
-      - name: Clean dist folder and icon links (macOS)
-        if: matrix.platform == 'macos'
-        run: |
-          rm -rf dist
-          # Remove any hardlinked icons from previous builds
-          if [ -f build/icon.icns ]; then
-            # Check if it's a hardlink (link count > 1)
-            LINKS=$(stat -f %l build/icon.icns 2>/dev/null || echo "1")
-            if [ "$LINKS" -gt "1" ]; then
-              echo "Removing hardlinked icon.icns"
-              rm -f build/icon.icns
-              # Restore from git if needed
-              git checkout build/icon.icns 2>/dev/null || echo "No icon in git"
-            fi
-          fi
-      
-      - name: Build application
+      - name: Build Windows
+        if: matrix.os == 'windows-latest'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: ${{ matrix.build_command }}
+        run: npm run build:win
+      
+      - name: Build macOS
+        if: matrix.os == 'macos-latest'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run build:mac
+      
+      - name: Build Linux
+        if: matrix.os == 'ubuntu-latest'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run build:linux
       
       - name: List build outputs
         run: |
@@ -90,95 +65,38 @@ jobs:
         shell: bash
       
       # Windows artifacts
-      - name: Upload Windows x64 Setup
-        if: matrix.platform == 'windows'
+      - name: Upload Windows artifacts
+        if: matrix.os == 'windows-latest'
         uses: actions/upload-artifact@v4
         with:
-          name: windows-x64-setup
-          path: dist/*-x64-Setup.exe
-          retention-days: 30
-          if-no-files-found: warn
-      
-      - name: Upload Windows ia32 Setup
-        if: matrix.platform == 'windows'
-        uses: actions/upload-artifact@v4
-        with:
-          name: windows-ia32-setup
-          path: dist/*-ia32-Setup.exe
-          retention-days: 30
-          if-no-files-found: warn
-      
-      - name: Upload Windows Portable
-        if: matrix.platform == 'windows'
-        uses: actions/upload-artifact@v4
-        with:
-          name: windows-portable
-          path: dist/*-Portable.exe
+          name: windows-installer
+          path: |
+            dist/*.exe
           retention-days: 30
           if-no-files-found: warn
       
       # macOS artifacts
-      - name: Upload macOS x64 DMG
-        if: matrix.platform == 'macos' && matrix.arch == 'x64'
+      - name: Upload macOS artifacts
+        if: matrix.os == 'macos-latest'
         uses: actions/upload-artifact@v4
         with:
-          name: macos-x64-dmg
-          path: dist/*.dmg
-          retention-days: 30
-          if-no-files-found: warn
-      
-      - name: Upload macOS x64 ZIP
-        if: matrix.platform == 'macos' && matrix.arch == 'x64'
-        uses: actions/upload-artifact@v4
-        with:
-          name: macos-x64-zip
-          path: dist/*.zip
-          retention-days: 30
-          if-no-files-found: warn
-      
-      - name: Upload macOS arm64 DMG
-        if: matrix.platform == 'macos' && matrix.arch == 'arm64'
-        uses: actions/upload-artifact@v4
-        with:
-          name: macos-arm64-dmg
-          path: dist/*.dmg
-          retention-days: 30
-          if-no-files-found: warn
-      
-      - name: Upload macOS arm64 ZIP
-        if: matrix.platform == 'macos' && matrix.arch == 'arm64'
-        uses: actions/upload-artifact@v4
-        with:
-          name: macos-arm64-zip
-          path: dist/*.zip
+          name: macos-installers
+          path: |
+            dist/*.dmg
+            dist/*.zip
           retention-days: 30
           if-no-files-found: warn
       
       # Linux artifacts
-      - name: Upload Linux AppImage
-        if: matrix.platform == 'linux'
+      - name: Upload Linux artifacts
+        if: matrix.os == 'ubuntu-latest'
         uses: actions/upload-artifact@v4
         with:
-          name: linux-appimage
-          path: dist/*.AppImage
-          retention-days: 30
-          if-no-files-found: warn
-      
-      - name: Upload Linux DEB
-        if: matrix.platform == 'linux'
-        uses: actions/upload-artifact@v4
-        with:
-          name: linux-deb
-          path: dist/*.deb
-          retention-days: 30
-          if-no-files-found: warn
-      
-      - name: Upload Linux RPM
-        if: matrix.platform == 'linux'
-        uses: actions/upload-artifact@v4
-        with:
-          name: linux-rpm
-          path: dist/*.rpm
+          name: linux-installers
+          path: |
+            dist/*.AppImage
+            dist/*.deb
+            dist/*.rpm
           retention-days: 30
           if-no-files-found: warn
   
@@ -199,16 +117,9 @@ jobs:
         run: |
           echo "=== Build Artifacts Summary ==="
           echo ""
-          echo "Windows:"
-          ls -lh all-artifacts/windows-*/ 2>/dev/null || echo "  No Windows builds"
+          find all-artifacts -type f -exec ls -lh {} \;
           echo ""
-          echo "macOS:"
-          ls -lh all-artifacts/macos-*/ 2>/dev/null || echo "  No macOS builds"
-          echo ""
-          echo "Linux:"
-          ls -lh all-artifacts/linux-*/ 2>/dev/null || echo "  No Linux builds"
-          echo ""
-          echo "=== Total artifacts ==="
+          echo "=== Total files ==="
           find all-artifacts -type f | wc -l
           echo ""
           echo "Download artifacts from the Actions tab above!"
