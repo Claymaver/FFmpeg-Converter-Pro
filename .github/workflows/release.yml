@@ -155,6 +155,22 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y fakeroot dpkg rpm
       
+      - name: Clean dist folder and icon links (macOS)
+        if: matrix.platform == 'macos'
+        run: |
+          rm -rf dist
+          # Remove any hardlinked icons from previous builds
+          if [ -f build/icon.icns ]; then
+            # Check if it's a hardlink (link count > 1)
+            LINKS=$(stat -f %l build/icon.icns 2>/dev/null || echo "1")
+            if [ "$LINKS" -gt "1" ]; then
+              echo "Removing hardlinked icon.icns"
+              rm -f build/icon.icns
+              # Restore from git if needed
+              git checkout build/icon.icns 2>/dev/null || echo "No icon in git"
+            fi
+          fi
+      
       - name: Build application
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

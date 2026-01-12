@@ -33,26 +33,25 @@
     "transcoding"
   ],
   "author": {
-    "name": "Clay MacDonald",
-    "email": "Claymaver@proton.me"
+    "name": "Clay",
+    "email": "your-email@example.com"
   },
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Claymaver/ffmpeg-converter-pro"
+    "url": "https://github.com/yourusername/ffmpeg-converter-pro"
   },
   "devDependencies": {
-    "electron": "^33.2.0",
+    "electron": "^39.2.7",
     "electron-builder": "^25.1.8"
   },
-  "dependencies": {},
   "engines": {
     "node": ">=18.0.0"
   },
   "build": {
     "appId": "com.clay.ffmpeg-converter-pro",
     "productName": "FFmpeg Converter Pro",
-    "copyright": "Copyright © 2026 Clay MacDonald. All rights reserved.",
+    "copyright": "Copyright © 2026 Clay",
     "compression": "normal",
     "asar": true,
     "files": [
@@ -63,7 +62,9 @@
       {
         "from": "build/",
         "to": "resources/",
-        "filter": ["**/*"]
+        "filter": [
+          "**/*"
+        ]
       }
     ],
     "directories": {
@@ -74,16 +75,21 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64", "ia32"]
+          "arch": [
+            "x64",
+            "ia32"
+          ]
         },
         {
           "target": "portable",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "icon": "build/icon.ico",
       "artifactName": "${productName}-${version}-${arch}-Setup.${ext}",
-      "publisherName": "Clay MacDonald",
+      "publisherName": "Clay",
       "verifyUpdateCodeSignature": false,
       "requestedExecutionLevel": "asInvoker"
     },
@@ -108,11 +114,19 @@
       "target": [
         {
           "target": "dmg",
-          "arch": ["x64", "arm64", "universal"]
+          "arch": [
+            "x64",
+            "arm64",
+            "universal"
+          ]
         },
         {
           "target": "zip",
-          "arch": ["x64", "arm64", "universal"]
+          "arch": [
+            "x64",
+            "arm64",
+            "universal"
+          ]
         }
       ],
       "icon": "build/icon.icns",
@@ -125,7 +139,8 @@
       "extendInfo": {
         "NSCameraUsageDescription": "This app does not use the camera",
         "NSMicrophoneUsageDescription": "This app does not use the microphone"
-      }
+      },
+      "fileAssociations": []
     },
     "dmg": {
       "contents": [
@@ -152,15 +167,21 @@
       "target": [
         {
           "target": "AppImage",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         },
         {
           "target": "deb",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         },
         {
           "target": "rpm",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "icon": "build/icons",
