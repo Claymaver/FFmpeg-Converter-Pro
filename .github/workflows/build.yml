@@ -24,23 +24,55 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # ------------------------
+      # Get version (cross-platform safe)
+      # ------------------------
       - name: Get version from package.json
         id: get_version
+        shell: bash
         run: |
           VERSION=$(node -p "require('./package.json').version")
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Detected version: $VERSION"
 
+      # ------------------------
+      # Setup Node + cache
+      # ------------------------
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
 
+      # ------------------------
+      # Cache Electron / builder
+      # ------------------------
+      - name: Cache Electron
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/electron
+            ~/.cache/electron-builder
+            ~/Library/Caches/electron
+            ~/Library/Caches/electron-builder
+          key: ${{ runner.os }}-electron-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-electron-
+
       - name: Install dependencies
         run: npm install
 
-      # Linux
+      # ------------------------
+      # Clean previous builds (ALL OS)
+      # ------------------------
+      - name: Clean dist
+        shell: bash
+        run: |
+          rm -rf dist
+
+      # ------------------------
+      # Linux setup + build
+      # ------------------------
       - name: Install Linux build dependencies
         if: matrix.os == 'ubuntu-latest'
         run: |
@@ -53,20 +85,26 @@ jobs:
           chmod +x build-linux.sh
           ./build-linux.sh
 
-      # macOS
+      # ------------------------
+      # macOS build (fixed)
+      # ------------------------
       - name: Run macOS build
         if: matrix.os == 'macos-latest'
         run: |
           chmod +x build-mac.sh
           ./build-mac.sh
 
-      # Windows
+      # ------------------------
+      # Windows build (fixed shell)
+      # ------------------------
       - name: Run Windows build
         if: matrix.os == 'windows-latest'
         run: build-win.bat
         shell: cmd
 
+      # ------------------------
       # Upload installers only
+      # ------------------------
       - name: Upload installers
         uses: actions/upload-artifact@v4
         with:
@@ -80,6 +118,9 @@ jobs:
             dist/**/*.rpm
           if-no-files-found: warn
 
+  # ============================
+  # RELEASE JOB (DRAFT)
+  # ============================
   release:
     name: Create Draft Release
     needs: build
@@ -91,6 +132,9 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: artifacts
+
+      - name: Show artifact structure
+        run: ls -R artifacts
 
       - name: Create Draft GitHub Release
         uses: softprops/action-gh-release@v2
