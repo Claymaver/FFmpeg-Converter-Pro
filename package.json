@@ -26,40 +26,26 @@
     "postinstall": "electron-builder install-app-deps"
   },
   "keywords": ["ffmpeg", "video", "converter", "media", "transcoding"],
-  "author": {
-    "name": "Clay",
-    "email": "Claymaver@proton.me"
-  },
+  "author": { "name": "Clay", "email": "Claymaver@proton.me" },
   "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/yourusername/ffmpeg-converter-pro"
-  },
+  "repository": { "type": "git", "url": "https://github.com/Claymaver/ffmpeg-converter-pro" },
   "devDependencies": {
     "electron": "^25.3.0",
     "electron-builder": "^25.1.8",
     "rimraf": "^5.0.0"
   },
-  "engines": {
-    "node": ">=18.0.0"
-  },
+  "engines": { "node": ">=18.0.0" },
   "build": {
     "appId": "com.clay.ffmpeg-converter-pro",
     "productName": "FFmpeg Converter Pro",
     "compression": "normal",
     "asar": true,
+    "overwrite": true,
     "files": ["src/**/*", "package.json"],
     "extraFiles": [
-      {
-        "from": "build/",
-        "to": "resources/",
-        "filter": ["**/*"]
-      }
+      { "from": "build/", "to": "resources/", "filter": ["**/*"] }
     ],
-    "directories": {
-      "buildResources": "build",
-      "output": "dist"
-    },
+    "directories": { "buildResources": "build", "output": "dist" },
     "win": {
       "target": [
         { "target": "nsis", "arch": ["x64", "ia32"] },
@@ -85,10 +71,9 @@
       "runAfterFinish": true,
       "menuCategory": true
     },
-    "portable": {
-      "artifactName": "${productName}-${version}-${arch}-Portable.${ext}"
-    },
+    "portable": { "artifactName": "${productName}-${version}-${arch}-Portable.${ext}" },
     "mac": {
+      "overwrite": true,
       "target": [
         { "target": "dmg", "arch": ["x64", "arm64", "universal"] },
         { "target": "zip", "arch": ["x64", "arm64", "universal"] }
@@ -141,11 +126,11 @@
     },
     "deb": {
       "depends": [
-        "libgconf-2-4",
-        "libappindicator3-1",
+        "gconf2",
         "libnotify4",
         "libnss3",
-        "libxtst6"
+        "libxtst6",
+        "libayatana-appindicator3-1"
       ],
       "priority": "optional",
       "afterInstall": "build/linux-after-install.sh",

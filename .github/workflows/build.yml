@@ -55,8 +55,7 @@ jobs:
       # Clean build directory
       # ------------------------
       - name: Clean dist
-        run: |
-          npx rimraf dist
+        run: npx rimraf dist
         shell: bash
 
       # ------------------------
@@ -66,7 +65,12 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt update
-          sudo apt install -y fakeroot dpkg rpm libgconf-2-4 libappindicator3-1 libnotify4 libnss3 libxtst6
+          sudo apt install -y fakeroot dpkg rpm \
+              gconf2 \
+              libnotify4 \
+              libnss3 \
+              libxtst6 \
+              libayatana-appindicator3-1
 
       # ------------------------
       # Build per OS
