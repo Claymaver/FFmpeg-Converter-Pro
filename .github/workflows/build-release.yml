@@ -21,6 +21,9 @@ jobs:
       version: ${{ steps.version.outputs.version }}
 
     steps:
+      # ------------------------
+      # Checkout
+      # ------------------------
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -59,31 +62,35 @@ jobs:
             ${{ runner.os }}-electron-
 
       # ------------------------
-      # Install dependencies
+      # Install deps
       # ------------------------
-      - name: Install deps
-        run: npm ci
+      - name: Install dependencies
+        run: npm install
 
       # ------------------------
-      # Clean dist folder
+      # Clean build folders
       # ------------------------
       - name: Clean dist
         run: npx rimraf dist
 
       # ------------------------
-      # Linux dependencies
+      # macOS: Remove old icon leftovers
       # ------------------------
-      - name: Install Linux deps
+      - name: Remove old mac icons
+        if: matrix.os == 'macos-latest'
+        run: rm -f dist/mac-universal-*-temp/**/*.icns || true
+
+      # ------------------------
+      # Linux deps
+      # ------------------------
+      - name: Install Linux dependencies
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt update
-          sudo apt install -y \
-            fakeroot dpkg rpm \
-            libnotify4 libnss3 libxtst6 \
-            libayatana-appindicator3-1 libgconf-2-4 || true
+          sudo apt install -y fakeroot dpkg rpm
 
       # ------------------------
-      # Build
+      # Build per OS
       # ------------------------
       - name: Build Linux
         if: matrix.os == 'ubuntu-latest'
@@ -97,7 +104,7 @@ jobs:
         if: matrix.os == 'windows-latest'
         run: npx electron-builder --win --x64 --ia32
         env:
-          CSC_IDENTITY_AUTO_DISCOVERY: false
+          CSC_IDENTITY_AUTO_DISCOVERY: false 
 
       # ------------------------
       # Upload installers
