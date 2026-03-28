@@ -17,22 +17,9 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
 
-    outputs:
-      version: ${{ steps.version.outputs.version }}
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      # ------------------------
-      # Get version
-      # ------------------------
-      - name: Get version
-        id: version
-        shell: bash
-        run: |
-          VERSION=$(node -p "require('./package.json').version")
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       # ------------------------
       # Setup Node
@@ -58,44 +45,47 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-electron-
 
+      # ------------------------
+      # Install dependencies
+      # ------------------------
       - name: Install deps
         run: npm install
 
       # ------------------------
-      # Clean build (fixes mac issue)
+      # Clean build directory
       # ------------------------
-      - name: Clean
+      - name: Clean dist
+        run: |
+          npx rimraf dist
         shell: bash
-        run: rm -rf dist
 
       # ------------------------
-      # Linux deps
+      # Linux dependencies
       # ------------------------
       - name: Install Linux deps
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt update
-          sudo apt install -y fakeroot dpkg rpm
+          sudo apt install -y fakeroot dpkg rpm libgconf-2-4 libappindicator3-1 libnotify4 libnss3 libxtst6
 
       # ------------------------
-      # Build (NO SCRIPTS)
+      # Build per OS
       # ------------------------
-      - name: Build Linux
-        if: matrix.os == 'ubuntu-latest'
-        run: npx electron-builder --linux AppImage deb rpm
-
-      - name: Build macOS
-        if: matrix.os == 'macos-latest'
-        run: npx electron-builder --mac --universal
-
-      - name: Build Windows (no signing)
-        if: matrix.os == 'windows-latest'
-        run: npx electron-builder --win --x64 --ia32
+      - name: Build App
+        run: |
+          if [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
+            npx electron-builder --linux AppImage deb rpm
+          elif [[ "${{ matrix.os }}" == "macos-latest" ]]; then
+            npx electron-builder --mac --universal
+          else
+            npx electron-builder --win --x64 --ia32
+          fi
+        shell: bash
         env:
-          CSC_IDENTITY_AUTO_DISCOVERY: false 
+          CSC_IDENTITY_AUTO_DISCOVERY: false
 
       # ------------------------
-      # Upload installers only
+      # Upload installers
       # ------------------------
       - name: Upload installers
         uses: actions/upload-artifact@v4
@@ -109,6 +99,18 @@ jobs:
             dist/**/*.deb
             dist/**/*.rpm
           if-no-files-found: warn
+
+      # ------------------------
+      # Set version output
+      # ------------------------
+      - name: Set version output
+        id: version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+    outputs:
+      version: ${{ steps.version.outputs.version }}
 
   # ============================
   # Draft Release
