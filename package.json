@@ -1,6 +1,6 @@
 {
   "name": "ffmpeg-converter-pro",
-  "version": "2.0.0",
+  "version": "2.1.1",
   "description": "Professional FFmpeg Video Converter",
   "main": "src/main.js",
   "scripts": {
