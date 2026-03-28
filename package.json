@@ -89,7 +89,8 @@
       ],
       "icon": "build/icon.ico",
       "artifactName": "${productName}-${version}-${arch}-Setup.${ext}",
-      "publisherName": "Clay",
+      "signtoolOptions": {
+    	"publisherName": "Clay MacDonald"},
       "verifyUpdateCodeSignature": false,
       "requestedExecutionLevel": "asInvoker"
     },

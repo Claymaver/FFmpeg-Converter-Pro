@@ -169,11 +169,31 @@
     /* Sidebar */
     .sidebar {
       width: var(--sidebar-width);
+      min-width: 200px;
+      max-width: 600px;
       background: var(--bg-secondary);
       border-right: 1px solid var(--border-color);
       display: flex;
       flex-direction: column;
       overflow: hidden;
+      position: relative;
+    }
+
+    .sidebar-resize-handle {
+      position: absolute;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      width: 4px;
+      cursor: col-resize;
+      background: transparent;
+      z-index: 100;
+      transition: background 0.2s;
+    }
+
+    .sidebar-resize-handle:hover,
+    .sidebar-resize-handle.resizing {
+      background: var(--mint-accent);
     }
 
     .sidebar-header {
@@ -264,6 +284,21 @@
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .file-name-text {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .file-size {
+      font-size: 11px;
+      color: var(--text-secondary);
+      opacity: 0.7;
     }
 
     .file-status {
@@ -671,6 +706,39 @@
 
     .problem-solution-icon {
       margin-top: 2px;
+    }
+
+    .problem-details {
+      margin-top: 8px;
+    }
+
+    .problem-details summary {
+      font-size: 11px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      user-select: none;
+      padding: 4px 0;
+    }
+
+    .problem-details summary:hover {
+      color: var(--text-primary);
+    }
+
+    .problem-details-output {
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 11px;
+      line-height: 1.5;
+      color: var(--text-secondary);
+      background: var(--bg-primary);
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      padding: 8px 10px;
+      margin-top: 4px;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+      max-height: 200px;
+      overflow-y: auto;
     }
 
     .problems-empty {
@@ -1178,6 +1246,299 @@
       font-size: 11px;
       color: var(--text-primary);
     }
+
+    /* ===== UI/UX Improvements ===== */
+
+    /* Drop Zone */
+    .drop-zone {
+      border: 2px dashed var(--border-color);
+      border-radius: 8px;
+      padding: 40px 24px;
+      text-align: center;
+      transition: all 0.2s ease;
+      cursor: pointer;
+      margin-top: 24px;
+    }
+
+    .drop-zone:hover {
+      border-color: var(--mint-green);
+      background: rgba(143, 168, 118, 0.05);
+    }
+
+    .drop-zone.drag-over {
+      border-color: var(--mint-accent);
+      background: rgba(155, 206, 102, 0.1);
+      transform: scale(1.01);
+    }
+
+    .drop-zone-icon {
+      width: 48px;
+      height: 48px;
+      color: var(--text-secondary);
+      margin: 0 auto 12px;
+      opacity: 0.5;
+      transition: all 0.2s;
+    }
+
+    .drop-zone:hover .drop-zone-icon,
+    .drop-zone.drag-over .drop-zone-icon {
+      color: var(--mint-accent);
+      opacity: 1;
+    }
+
+    .drop-zone-text {
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin-bottom: 4px;
+    }
+
+    .drop-zone-hint {
+      font-size: 12px;
+      color: var(--text-secondary);
+      opacity: 0.6;
+    }
+
+    /* Global drag-over overlay for sidebar */
+    .sidebar.drag-over {
+      outline: 2px solid var(--mint-accent);
+      outline-offset: -2px;
+      background: rgba(155, 206, 102, 0.05);
+    }
+
+    /* File item improvements — remove button on hover */
+    .file-tree-item {
+      position: relative;
+      padding-right: 28px;
+    }
+
+    .file-remove-btn {
+      position: absolute;
+      right: 4px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 20px;
+      height: 20px;
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      cursor: pointer;
+      border-radius: 3px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: all 0.15s;
+    }
+
+    .file-tree-item:hover .file-remove-btn {
+      opacity: 1;
+    }
+
+    .file-remove-btn:hover {
+      background: rgba(244, 135, 113, 0.2);
+      color: var(--error);
+    }
+
+    /* File status label (replaces tiny dot) */
+    .file-status-label {
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.3px;
+      padding: 1px 6px;
+      border-radius: 3px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .file-status-label.processing {
+      background: rgba(155, 206, 102, 0.15);
+      color: var(--mint-accent);
+      animation: pulse 1.5s infinite;
+    }
+
+    .file-status-label.success {
+      background: rgba(155, 206, 102, 0.15);
+      color: var(--success);
+    }
+
+    .file-status-label.error {
+      background: rgba(244, 135, 113, 0.15);
+      color: var(--error);
+    }
+
+    .file-status-label.pending {
+      color: var(--text-secondary);
+      opacity: 0;
+    }
+
+    .file-tree-item:hover .file-status-label.pending {
+      opacity: 0;
+    }
+
+    .file-status-label.skipped {
+      color: var(--text-secondary);
+      font-style: italic;
+    }
+
+    /* Settings summary bar */
+    .settings-summary {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 16px;
+      background: var(--bg-tertiary);
+      border-bottom: 1px solid var(--border-color);
+      font-size: 11px;
+      color: var(--text-secondary);
+      flex-wrap: wrap;
+    }
+
+    .settings-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 3px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--text-primary);
+    }
+
+    .settings-chip-label {
+      color: var(--text-secondary);
+      font-family: 'Inter', sans-serif;
+    }
+
+    .settings-summary-link {
+      margin-left: auto;
+      color: var(--mint-accent);
+      cursor: pointer;
+      font-size: 11px;
+      transition: color 0.2s;
+    }
+
+    .settings-summary-link:hover {
+      color: var(--mint-green-light);
+      text-decoration: underline;
+    }
+
+    /* Overall batch progress bar */
+    .batch-progress {
+      height: 3px;
+      background: var(--bg-tertiary);
+      width: 100%;
+      overflow: hidden;
+      transition: opacity 0.3s;
+    }
+
+    .batch-progress.hidden {
+      opacity: 0;
+    }
+
+    .batch-progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--mint-green), var(--mint-accent));
+      transition: width 0.3s ease;
+      width: 0%;
+    }
+
+    /* Welcome screen polish */
+    .welcome-screen {
+      gap: 0;
+    }
+
+    .welcome-subtitle {
+      max-width: 360px;
+      line-height: 1.5;
+    }
+
+    .welcome-actions {
+      margin-top: 32px;
+    }
+
+    .welcome-action {
+      min-width: 150px;
+      transition: all 0.2s ease;
+    }
+
+    .welcome-action:active {
+      transform: translateY(0);
+    }
+
+    .welcome-kbd {
+      font-size: 10px;
+      color: var(--text-secondary);
+      font-family: 'JetBrains Mono', monospace;
+      margin-top: 4px;
+      opacity: 0.6;
+    }
+
+    /* Collapsible affordance */
+    .collapsible-header {
+      color: var(--text-secondary);
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 0.3px;
+      margin-top: 8px;
+      padding: 8px 0;
+      border-top: 1px solid var(--border-color);
+    }
+
+    /* Settings section title polish */
+    .settings-section-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .settings-section-title svg {
+      width: 16px;
+      height: 16px;
+      color: var(--mint-accent);
+      stroke: currentColor;
+      fill: none;
+    }
+
+    /* Checkbox label alignment */
+    .setting-label input[type="checkbox"] {
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+
+    /* Help text consistency */
+    .setting-help {
+      font-size: 11px;
+      color: var(--text-secondary);
+      opacity: 0.7;
+      line-height: 1.4;
+    }
+
+    /* Button disabled state polish */
+    .btn:disabled {
+      opacity: 0.4;
+      pointer-events: none;
+    }
+
+    /* Panel resize handle */
+    .panel {
+      transition: height 0.2s ease;
+    }
+
+    /* Status bar polish */
+    .status-bar {
+      font-size: 11px;
+    }
+
+    .status-bar a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .status-bar a:hover {
+      color: var(--text-primary);
+    }
   </style>
 </head>
 <body>
@@ -1240,6 +1601,7 @@
 
     <!-- Sidebar -->
     <div class="sidebar" id="sidebar">
+      <div class="sidebar-resize-handle" id="sidebar-resize-handle"></div>
       <div class="sidebar-header">
         <span id="sidebar-title">EXPLORER</span>
         <div class="sidebar-actions">
@@ -1289,7 +1651,7 @@
 
       <!-- Editor Toolbar -->
       <div class="editor-toolbar" id="editor-toolbar" style="display: none;">
-        <div style="display: flex; align-items: center; gap: 8px;">
+        <div style="display: flex; align-items: center; gap: 8px; width: 100%;">
           <button onclick="startConversion()" id="convert-btn-toolbar" class="btn btn-primary" disabled>
             <svg class="icon" viewBox="0 0 24 24">
               <circle cx="12" cy="12" r="10"></circle>
@@ -1302,12 +1664,24 @@
               <polyline points="3 6 5 6 21 6"></polyline>
               <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"></path>
             </svg>
-            Clear All
+            Clear
           </button>
           <div style="margin-left: auto; display: flex; align-items: center; gap: 12px; color: var(--text-secondary); font-size: 12px;">
             <span id="file-count-display">0 files selected</span>
           </div>
         </div>
+      </div>
+      <!-- Settings summary (visible when files loaded) -->
+      <div class="settings-summary" id="settings-summary" style="display: none;">
+        <span class="settings-chip"><span class="settings-chip-label">Format</span> <span id="summary-format">MP4</span></span>
+        <span class="settings-chip"><span class="settings-chip-label">Codec</span> <span id="summary-codec">H.264</span></span>
+        <span class="settings-chip"><span class="settings-chip-label" id="summary-quality-label">CRF</span> <span id="summary-crf">23</span></span>
+        <span class="settings-chip"><span class="settings-chip-label">Audio</span> <span id="summary-audio">AAC 192k</span></span>
+        <span class="settings-summary-link" onclick="switchView('settings', document.querySelectorAll('.activity-item')[1])">Edit Settings</span>
+      </div>
+      <!-- Batch progress bar -->
+      <div class="batch-progress hidden" id="batch-progress">
+        <div class="batch-progress-fill" id="batch-progress-fill"></div>
       </div>
 
       <!-- Editor Content -->
@@ -1319,36 +1693,38 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
           </svg>
           <div class="welcome-title">FFmpeg Converter Pro</div>
-          <div class="welcome-subtitle">Professional media conversion for everyone</div>
+          <div class="welcome-subtitle">Professional media conversion powered by FFmpeg</div>
           <div class="welcome-actions">
             <div class="welcome-action" onclick="selectFiles()">
               <svg class="welcome-action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
               <span class="welcome-action-label">Add Files</span>
+              <span class="welcome-kbd">Ctrl+O</span>
             </div>
             <div class="welcome-action" onclick="selectFolder()">
               <svg class="welcome-action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
               </svg>
               <span class="welcome-action-label">Add Folder</span>
+              <span class="welcome-kbd">Ctrl+Shift+O</span>
             </div>
-            <div class="welcome-action" onclick="showAbout()">
+            <div class="welcome-action" onclick="switchView('settings', document.querySelectorAll('.activity-item')[1])">
               <svg class="welcome-action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <circle cx="12" cy="12" r="10"></circle>
-                <path d="M12 16v-4M12 8h.01"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M12 1v6m0 6v6M5.6 5.6l4.2 4.2m5.6 5.6l4.2 4.2M1 12h6m6 0h6M5.6 18.4l4.2-4.2m5.6-5.6l4.2-4.2"></path>
               </svg>
-              <span class="welcome-action-label">About</span>
+              <span class="welcome-action-label">Settings</span>
+              <span class="welcome-kbd">Ctrl+,</span>
             </div>
           </div>
-          <div style="margin-top: 24px;">
-            <button onclick="startConversion()" id="convert-btn" class="btn btn-primary" style="padding: 12px 24px; font-size: 14px;" disabled>
-              <svg class="icon" viewBox="0 0 24 24">
-                <circle cx="12" cy="12" r="10"></circle>
-                <polygon points="10 8 16 12 10 16 10 8"></polygon>
-              </svg>
-              Start Conversion
-            </button>
+          <!-- Drop zone -->
+          <div class="drop-zone" id="welcome-drop-zone" onclick="selectFiles()">
+            <svg class="drop-zone-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+            </svg>
+            <div class="drop-zone-text">Drop media files here</div>
+            <div class="drop-zone-hint">or click to browse</div>
           </div>
         </div>
 
@@ -1373,26 +1749,58 @@
               <div class="setting-item">
                 <label class="setting-label">Video Codec</label>
                 <select id="video-codec">
-                  <option value="libx264">H.264</option>
-                  <option value="libx265">H.265</option>
-                  <option value="libvpx-vp9">VP9</option>
-                  <option value="copy">Copy</option>
+                  <optgroup label="Software (CPU)">
+                    <option value="libx264">H.264 (x264)</option>
+                    <option value="libx265">H.265 (x265)</option>
+                    <option value="libvpx-vp9">VP9</option>
+                  </optgroup>
+                  <optgroup label="NVIDIA NVENC (GPU)">
+                    <option value="h264_nvenc">H.264 (NVENC)</option>
+                    <option value="hevc_nvenc">H.265 (NVENC)</option>
+                  </optgroup>
+                  <optgroup label="Intel Quick Sync (GPU)">
+                    <option value="h264_qsv">H.264 (QSV)</option>
+                    <option value="hevc_qsv">H.265 (QSV)</option>
+                  </optgroup>
+                  <optgroup label="AMD AMF (GPU)">
+                    <option value="h264_amf">H.264 (AMF)</option>
+                    <option value="hevc_amf">H.265 (AMF)</option>
+                  </optgroup>
+                  <optgroup label="Other">
+                    <option value="copy">Copy (no re-encode)</option>
+                  </optgroup>
                 </select>
               </div>
 
               <div class="setting-item">
                 <label class="setting-label">Quality (CRF)</label>
                 <input type="number" id="video-crf" value="23" min="0" max="51">
-                <span class="setting-help">Lower = better (18-28)</span>
+                <span class="setting-help" id="crf-help">Lower = better (18-28)</span>
+              </div>
+
+              <div class="setting-item" style="grid-column: span 2;">
+                <label class="setting-label">Target File Size</label>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                  <select id="size-target-mode" style="flex: 1;">
+                    <option value="">Disabled (use CRF)</option>
+                    <option value="episode">TV Episode (~350 MB)</option>
+                    <option value="movie">Movie (~2.75 GB)</option>
+                    <option value="custom">Custom Size</option>
+                  </select>
+                  <input type="number" id="size-target-mb" placeholder="MB" min="10" style="width: 100px; display: none;">
+                </div>
+                <span class="setting-help">Uses 2-pass encoding to hit target size. Overrides CRF when active.</span>
               </div>
 
               <div class="setting-item">
                 <label class="setting-label">Resolution</label>
                 <select id="video-resolution">
                   <option value="">Original</option>
-                  <option value="1920x1080">1080p</option>
-                  <option value="1280x720">720p</option>
-                  <option value="854x480">480p</option>
+                  <option value="2160">4K (2160p)</option>
+                  <option value="1440">1440p</option>
+                  <option value="1080">1080p</option>
+                  <option value="720">720p</option>
+                  <option value="480">480p</option>
                 </select>
               </div>
 
@@ -1464,8 +1872,9 @@
               <div class="setting-item">
                 <label class="setting-label">Bitrate</label>
                 <select id="audio-bitrate">
+                  <option value="96">96 kbps</option>
                   <option value="128">128 kbps</option>
-                  <option value="192">192 kbps</option>
+                  <option value="192" selected>192 kbps</option>
                   <option value="256">256 kbps</option>
                   <option value="320">320 kbps</option>
                 </select>
@@ -1513,20 +1922,43 @@
             <div class="settings-section-title">Output Settings</div>
             <div class="settings-grid">
               <div class="setting-item" style="grid-column: span 2;">
+                <label class="setting-label">
+                  <input type="checkbox" id="use-source-folder" onchange="toggleOutputFolderMode()">
+                  Save in source folder (not recommended if folder name has special characters)
+                </label>
+              </div>
+              
+              <div class="setting-item" style="grid-column: span 2; display: none;" id="output-folder-setting">
                 <label class="setting-label">Output Folder</label>
                 <div style="display: flex; gap: 8px;">
-                  <input type="text" id="output-folder" placeholder="Same as source" style="flex: 1;">
+                  <input type="text" id="output-folder" placeholder="Choose output folder" style="flex: 1;">
                   <button class="btn btn-secondary" onclick="selectOutputFolder()">Browse</button>
                 </div>
               </div>
-              <div class="setting-item">
+              
+              <div class="setting-item" style="grid-column: span 2;">
+                <label class="setting-label">
+                  <input type="checkbox" id="replace-original" onchange="toggleReplaceOriginal()">
+                  Replace original files (⚠️ Warning: Cannot be undone!)
+                </label>
+              </div>
+              
+              <div class="setting-item" id="naming-pattern-setting">
                 <label class="setting-label">Naming Pattern</label>
                 <select id="naming-pattern">
                   <option value="original">Keep Original</option>
-                  <option value="prefix">Add Prefix</option>
-                  <option value="suffix">Add Suffix</option>
+                  <option value="suffix">Add Suffix "_converted"</option>
+                  <option value="prefix">Add Prefix "converted_"</option>
+                  <option value="custom">Custom Pattern</option>
                 </select>
               </div>
+              
+              <div class="setting-item" id="custom-pattern-setting" style="display: none;">
+                <label class="setting-label">Custom Pattern</label>
+                <input type="text" id="custom-pattern" placeholder="{name}_new" style="width: 100%;">
+                <small style="color: var(--text-secondary); font-size: 11px;">Use {name} for filename</small>
+              </div>
+              
               <div class="setting-item">
                 <label class="setting-label">Hardware Acceleration</label>
                 <select id="hw-accel">
@@ -1535,6 +1967,13 @@
                   <option value="nvenc">NVIDIA</option>
                   <option value="qsv">Intel</option>
                 </select>
+              </div>
+              
+              <div class="setting-item">
+                <label class="setting-label">
+                  <input type="checkbox" id="overwrite-existing">
+                  Overwrite existing files
+                </label>
               </div>
             </div>
           </div>
@@ -1597,13 +2036,13 @@
       <div class="status-item">
         <span id="file-count">0 files</span>
       </div>
+      <div class="status-item" id="batch-status" style="display: none;">
+        <span id="batch-status-text"></span>
+      </div>
     </div>
     <div class="status-right">
-      <div class="status-item" onclick="showAbout()">
-        <span>Created by Clay MacDonald</span>
-      </div>
-      <div class="status-item">
-        <span>v2.0.0</span>
+      <div class="status-item" onclick="showAbout()" title="About" style="cursor: pointer;">
+        <span>FFmpeg Converter Pro v2.0.0</span>
       </div>
     </div>
   </div>
@@ -1642,7 +2081,7 @@
               <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"></path>
               <circle cx="12" cy="7" r="4"></circle>
             </svg>
-            Clay MacDonald
+            Clay
           </div>
         </div>
         
@@ -1653,7 +2092,7 @@
               <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 00-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0020 4.77 5.07 5.07 0 0019.91 1S18.73.65 16 2.48a13.38 13.38 0 00-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 005 4.77a5.44 5.44 0 00-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 009 18.13V22"></path>
             </svg>
             <a href="#" onclick="openGitHub(); return false;" class="modal-link">
-              github.com/Claymaver/ffmpeg-converter-pro
+              github.com/yourusername/ffmpeg-converter-pro
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                 <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"></path>
                 <polyline points="15 3 21 3 21 9"></polyline>
@@ -1676,6 +2115,14 @@
               <span class="modal-feature-icon">🎬</span>
               FFmpeg
             </div>
+            <div class="modal-feature">
+              <span class="modal-feature-icon">💻</span>
+              VS Code UI
+            </div>
+            <div class="modal-feature">
+              <span class="modal-feature-icon">🌿</span>
+              Linux Mint Theme
+            </div>
           </div>
         </div>
       </div>
@@ -1691,7 +2138,7 @@
             <span>Add Files</span>
           </div>
         </div>
-        <div>© 2026 Clay MacDonald</div>
+        <div>© 2026 Clay</div>
       </div>
     </div>
   </div>
@@ -1699,8 +2146,15 @@
   <script>
     // Global state
     let selectedFiles = [];
+    let fileMetadata = {}; // Store file sizes and other metadata
     let currentView = 'explorer';
     let activeTab = 'welcome';
+    let isConverting = false;
+
+    // Sidebar resize
+    let isResizing = false;
+    let startX = 0;
+    let startWidth = 0;
 
     // Initialize
     window.addEventListener('DOMContentLoaded', async () => {
@@ -1717,8 +2171,273 @@
       await checkFFmpegStatus();
       updateFileCount();
       
+      // Initialize sidebar resize
+      initSidebarResize();
+      
+      // Initialize settings listeners
+      document.getElementById('naming-pattern')?.addEventListener('change', (e) => {
+        const customSetting = document.getElementById('custom-pattern-setting');
+        if (customSetting) {
+          customSetting.style.display = e.target.value === 'custom' ? 'block' : 'none';
+        }
+      });
+
+      // Size target mode
+      document.getElementById('size-target-mode')?.addEventListener('change', (e) => {
+        const customInput = document.getElementById('size-target-mb');
+        const crfInput = document.getElementById('video-crf');
+        const crfHelp = document.getElementById('crf-help');
+
+        if (e.target.value === 'custom') {
+          if (customInput) customInput.style.display = 'block';
+        } else {
+          if (customInput) customInput.style.display = 'none';
+        }
+
+        // Pre-fill custom input for presets
+        if (e.target.value === 'episode' && customInput) customInput.value = '350';
+        else if (e.target.value === 'movie' && customInput) customInput.value = '2816';
+
+        // Visual feedback: dim CRF when size target is active
+        const active = e.target.value !== '';
+        if (crfInput) crfInput.style.opacity = active ? '0.4' : '1';
+        if (crfHelp) crfHelp.textContent = active ? 'Overridden by size target' : 'Lower = better (18-28)';
+
+        updateSettingsSummary();
+      });
+
+      // Auto-set HW accel decoding to match GPU encoder codec
+      document.getElementById('video-codec')?.addEventListener('change', (e) => {
+        const val = e.target.value;
+        const hwAccel = document.getElementById('hw-accel');
+        const presetSelect = document.getElementById('video-preset');
+        if (hwAccel) {
+          if (val.includes('nvenc')) hwAccel.value = 'nvenc';
+          else if (val.includes('qsv')) hwAccel.value = 'qsv';
+          else if (val.includes('amf')) hwAccel.value = 'amf';
+        }
+        // Update preset help — NVENC/QSV/AMF use different preset names
+        if (presetSelect) {
+          const isHw = val.includes('nvenc') || val.includes('qsv') || val.includes('amf');
+          const presetHelp = presetSelect.parentElement?.querySelector('.setting-help');
+          if (presetHelp) {
+            presetHelp.textContent = isHw ? 'Preset applies to software codecs only' : '';
+          }
+        }
+        updateSettingsSummary();
+      });
+
+      // Initialize drag-and-drop
+      initDragAndDrop();
+
       console.log('=== Initialization Complete ===');
     });
+
+    // Drag-and-drop support
+    function initDragAndDrop() {
+      const MEDIA_EXTS = new Set([
+        '.mp4','.avi','.mkv','.mov','.wmv','.flv','.webm','.m4v',
+        '.mpg','.mpeg','.ts',
+        '.mp3','.wav','.flac','.aac','.m4a','.ogg','.wma'
+      ]);
+
+      function isMediaFile(name) {
+        const ext = '.' + name.split('.').pop().toLowerCase();
+        return MEDIA_EXTS.has(ext);
+      }
+
+      function handleDroppedFiles(fileList) {
+        const newFiles = [];
+        const newMetadata = {};
+
+        for (const file of fileList) {
+          if (isMediaFile(file.name)) {
+            // Electron gives us the full path via file.path
+            const filePath = file.path;
+            if (filePath && !selectedFiles.includes(filePath)) {
+              newFiles.push(filePath);
+              newMetadata[filePath] = { size: file.size };
+            }
+          }
+        }
+
+        if (newFiles.length > 0) {
+          selectedFiles = [...selectedFiles, ...newFiles];
+          Object.assign(fileMetadata, newMetadata);
+          updateFileList();
+          updateFileCount();
+          updateConvertButton();
+          logMessage(`Added ${newFiles.length} file${newFiles.length === 1 ? '' : 's'} via drag & drop`, 'success');
+        } else if (fileList.length > 0) {
+          logMessage('No supported media files found in dropped items', 'warning');
+        }
+      }
+
+      // Prevent default drag behavior globally
+      document.addEventListener('dragover', (e) => e.preventDefault());
+      document.addEventListener('drop', (e) => e.preventDefault());
+
+      // Welcome drop zone
+      const welcomeDropZone = document.getElementById('welcome-drop-zone');
+      if (welcomeDropZone) {
+        welcomeDropZone.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          welcomeDropZone.classList.add('drag-over');
+        });
+        welcomeDropZone.addEventListener('dragleave', (e) => {
+          e.preventDefault();
+          welcomeDropZone.classList.remove('drag-over');
+        });
+        welcomeDropZone.addEventListener('drop', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          welcomeDropZone.classList.remove('drag-over');
+          handleDroppedFiles(e.dataTransfer.files);
+        });
+      }
+
+      // Sidebar drop target
+      const sidebar = document.getElementById('sidebar');
+      if (sidebar) {
+        sidebar.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          sidebar.classList.add('drag-over');
+        });
+        sidebar.addEventListener('dragleave', (e) => {
+          e.preventDefault();
+          // Only remove if actually leaving the sidebar
+          if (!sidebar.contains(e.relatedTarget)) {
+            sidebar.classList.remove('drag-over');
+          }
+        });
+        sidebar.addEventListener('drop', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          sidebar.classList.remove('drag-over');
+          handleDroppedFiles(e.dataTransfer.files);
+        });
+      }
+
+      // Editor area drop target (whole main area)
+      const editorContent = document.getElementById('editor-content');
+      if (editorContent) {
+        editorContent.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (welcomeDropZone) welcomeDropZone.classList.add('drag-over');
+        });
+        editorContent.addEventListener('dragleave', (e) => {
+          e.preventDefault();
+          if (!editorContent.contains(e.relatedTarget)) {
+            if (welcomeDropZone) welcomeDropZone.classList.remove('drag-over');
+          }
+        });
+        editorContent.addEventListener('drop', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (welcomeDropZone) welcomeDropZone.classList.remove('drag-over');
+          handleDroppedFiles(e.dataTransfer.files);
+        });
+      }
+    }
+
+    // Sidebar resize functionality
+    function initSidebarResize() {
+      const resizeHandle = document.getElementById('sidebar-resize-handle');
+      const sidebar = document.getElementById('sidebar');
+      
+      if (!resizeHandle || !sidebar) return;
+      
+      resizeHandle.addEventListener('mousedown', (e) => {
+        isResizing = true;
+        startX = e.clientX;
+        startWidth = sidebar.offsetWidth;
+        resizeHandle.classList.add('resizing');
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+      });
+      
+      document.addEventListener('mousemove', (e) => {
+        if (!isResizing) return;
+        
+        const diff = e.clientX - startX;
+        const newWidth = Math.max(200, Math.min(600, startWidth + diff));
+        document.documentElement.style.setProperty('--sidebar-width', `${newWidth}px`);
+      });
+      
+      document.addEventListener('mouseup', () => {
+        if (isResizing) {
+          isResizing = false;
+          resizeHandle.classList.remove('resizing');
+          document.body.style.cursor = '';
+          document.body.style.userSelect = '';
+        }
+      });
+    }
+
+    // Toggle output folder mode
+    window.toggleOutputFolderMode = function toggleOutputFolderMode() {
+      const useSourceFolder = document.getElementById('use-source-folder').checked;
+      const outputFolderSetting = document.getElementById('output-folder-setting');
+      const namingPatternSetting = document.getElementById('naming-pattern-setting');
+      const replaceOriginalCheckbox = document.getElementById('replace-original');
+      
+      if (outputFolderSetting) {
+        outputFolderSetting.style.display = useSourceFolder ? 'none' : 'block';
+      }
+      
+      // If using source folder and replace original is checked, adjust naming
+      if (useSourceFolder && replaceOriginalCheckbox?.checked) {
+        if (namingPatternSetting) namingPatternSetting.style.display = 'none';
+      } else {
+        if (namingPatternSetting) namingPatternSetting.style.display = 'block';
+      }
+    };
+
+    // Toggle replace original
+    window.toggleReplaceOriginal = function toggleReplaceOriginal() {
+      const replaceOriginal = document.getElementById('replace-original').checked;
+      const namingPatternSetting = document.getElementById('naming-pattern-setting');
+      const customPatternSetting = document.getElementById('custom-pattern-setting');
+      const useSourceFolder = document.getElementById('use-source-folder');
+      
+      if (replaceOriginal) {
+        // Warn user
+        if (!confirm('⚠️ WARNING: Replacing original files cannot be undone!\n\nThe original files will be permanently overwritten.\n\nAre you sure you want to continue?')) {
+          document.getElementById('replace-original').checked = false;
+          return;
+        }
+        
+        // Hide naming pattern (not needed when replacing)
+        if (namingPatternSetting) namingPatternSetting.style.display = 'none';
+        if (customPatternSetting) customPatternSetting.style.display = 'none';
+        
+        // Force use source folder
+        if (useSourceFolder) {
+          useSourceFolder.checked = true;
+          useSourceFolder.disabled = true;
+        }
+      } else {
+        // Show naming pattern again
+        if (namingPatternSetting) namingPatternSetting.style.display = 'block';
+        
+        // Re-enable source folder option
+        if (useSourceFolder) {
+          useSourceFolder.disabled = false;
+        }
+      }
+    };
+
+    // Format file size
+    function formatFileSize(bytes) {
+      if (bytes === 0) return '0 B';
+      const k = 1024;
+      const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
 
     // View switching (make global)
     window.switchView = function switchView(view, clickedButton) {
@@ -1780,11 +2499,19 @@
         }
         
         console.log('Calling window.electronAPI.selectFiles()...');
-        const files = await window.electronAPI.selectFiles();
-        console.log('Got files:', files);
+        const result = await window.electronAPI.selectFiles();
+        console.log('Got result:', result);
+        
+        // Handle new response format with metadata
+        const files = result.files || result || [];
+        const metadata = result.metadata || {};
         
         if (files && files.length > 0) {
           selectedFiles = [...selectedFiles, ...files];
+          
+          // Store file metadata (sizes)
+          Object.assign(fileMetadata, metadata);
+          
           updateFileList();
           updateFileCount();
           updateConvertButton();
@@ -1811,11 +2538,19 @@
         }
         
         console.log('Calling window.electronAPI.selectFolder()...');
-        const files = await window.electronAPI.selectFolder();
-        console.log('Got files:', files);
+        const result = await window.electronAPI.selectFolder();
+        console.log('Got result:', result);
+        
+        // Handle new response format with metadata
+        const files = result.files || result || [];
+        const metadata = result.metadata || {};
         
         if (files && files.length > 0) {
           selectedFiles = [...selectedFiles, ...files];
+          
+          // Store file metadata (sizes)
+          Object.assign(fileMetadata, metadata);
+          
           updateFileList();
           updateFileCount();
           updateConvertButton();
@@ -1876,7 +2611,8 @@
       const toolbar = document.getElementById('editor-toolbar');
       const welcomeScreen = document.getElementById('welcome-screen');
       const fileCountDisplay = document.getElementById('file-count-display');
-      
+      const settingsSummary = document.getElementById('settings-summary');
+
       if (selectedFiles.length === 0) {
         container.innerHTML = `
           <div class="empty-state">
@@ -1884,19 +2620,24 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
             <div class="empty-title">No files selected</div>
-            <div class="empty-subtitle">Add files to begin conversion</div>
+            <div class="empty-subtitle">Drop files here or use the + button</div>
           </div>
         `;
-        
-        // Hide toolbar, show welcome screen
+
+        // Hide toolbar and summary, show welcome screen
         if (toolbar) toolbar.style.display = 'none';
+        if (settingsSummary) settingsSummary.style.display = 'none';
         if (welcomeScreen) welcomeScreen.style.display = 'flex';
-        
+
         return;
       }
 
-      // Show toolbar, hide welcome screen
+      // Show toolbar and summary, hide welcome screen
       if (toolbar) toolbar.style.display = 'flex';
+      if (settingsSummary) {
+        settingsSummary.style.display = 'flex';
+        updateSettingsSummary();
+      }
       if (welcomeScreen) welcomeScreen.style.display = 'none';
       if (fileCountDisplay) {
         fileCountDisplay.textContent = `${selectedFiles.length} file${selectedFiles.length === 1 ? '' : 's'} selected`;
@@ -1904,16 +2645,60 @@
 
       container.innerHTML = selectedFiles.map((file, index) => {
         const filename = file.split(/[/\\]/).pop();
+        const ext = filename.split('.').pop().toUpperCase();
+        const metadata = fileMetadata[file];
+        const sizeText = metadata?.size ? formatFileSize(metadata.size) : '';
+
         return `
           <div class="file-tree-item" onclick="selectFileItem(${index})">
             <svg class="file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
             </svg>
-            <span class="file-name" title="${file}">${filename}</span>
-            <div class="file-status" id="status-${index}"></div>
+            <div class="file-name">
+              <div class="file-name-text" title="${file}">${filename}</div>
+              <div class="file-size">${sizeText}</div>
+            </div>
+            <span class="file-status-label pending" id="status-${index}"></span>
+            <button class="file-remove-btn" onclick="event.stopPropagation(); removeFile(${index})" title="Remove">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
           </div>
         `;
       }).join('');
+    }
+
+    // Update settings summary chips
+    function updateSettingsSummary() {
+      const fmt = document.getElementById('video-format');
+      const codec = document.getElementById('video-codec');
+      const crf = document.getElementById('video-crf');
+      const aCodec = document.getElementById('audio-codec');
+      const aBitrate = document.getElementById('audio-bitrate');
+
+      const el = (id) => document.getElementById(id);
+      if (el('summary-format') && fmt) el('summary-format').textContent = fmt.options[fmt.selectedIndex]?.text || 'MP4';
+      if (el('summary-codec') && codec) el('summary-codec').textContent = codec.options[codec.selectedIndex]?.text || 'H.264';
+      const sizeMode = document.getElementById('size-target-mode');
+      const qualityLabel = el('summary-quality-label');
+      const summaryCrf = el('summary-crf');
+      if (sizeMode && sizeMode.value && sizeMode.value !== '') {
+        if (qualityLabel) qualityLabel.textContent = 'Target';
+        let targetText = '';
+        if (sizeMode.value === 'episode') targetText = '~350 MB';
+        else if (sizeMode.value === 'movie') targetText = '~2.75 GB';
+        else targetText = (document.getElementById('size-target-mb')?.value || '?') + ' MB';
+        if (summaryCrf) summaryCrf.textContent = targetText;
+      } else {
+        if (qualityLabel) qualityLabel.textContent = 'CRF';
+        if (summaryCrf && crf) summaryCrf.textContent = crf.value || '23';
+      }
+      if (el('summary-audio') && aCodec && aBitrate) {
+        const codecName = aCodec.options[aCodec.selectedIndex]?.text || 'AAC';
+        el('summary-audio').textContent = `${codecName} ${aBitrate.value}k`;
+      }
     }
 
     window.selectFileItem = function selectFileItem(index) {
@@ -1997,31 +2782,40 @@
     // Problems management
     let problemCount = 0;
 
-    window.addProblem = function addProblem(file, severity, message, solution) {
+    window.addProblem = function addProblem(file, severity, message, solution, details) {
       const problemsContent = document.getElementById('problems-content');
       if (!problemsContent) return;
-      
+
       // Remove empty state if present
       const emptyState = problemsContent.querySelector('.problems-empty');
       if (emptyState) {
         problemsContent.innerHTML = '<div class="problems-container"></div>';
       }
-      
+
       const container = problemsContent.querySelector('.problems-container') || problemsContent;
-      
+
+      // Escape HTML in details to prevent injection
+      const escapeHtml = (str) => str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
       const problemItem = document.createElement('div');
       problemItem.className = `problem-item ${severity}`;
       problemItem.innerHTML = `
         <div class="problem-header">
           <span class="problem-severity ${severity}">${severity === 'error' ? '❌' : '⚠️'}</span>
-          <span class="problem-file">${file}</span>
+          <span class="problem-file">${escapeHtml(file)}</span>
         </div>
-        <div class="problem-message">${message}</div>
+        <div class="problem-message">${escapeHtml(message)}</div>
         ${solution ? `
           <div class="problem-solution">
             <span class="problem-solution-icon">💡</span>
-            <span>${solution}</span>
+            <span>${escapeHtml(solution)}</span>
           </div>
+        ` : ''}
+        ${details ? `
+          <details class="problem-details">
+            <summary>FFmpeg Output</summary>
+            <pre class="problem-details-output">${escapeHtml(details)}</pre>
+          </details>
         ` : ''}
       `;
       
@@ -2146,6 +2940,7 @@
             <div class="preset-badge" onclick="applyPreset('high-quality')">🎬 High Quality</div>
             <div class="preset-badge" style="margin-top: 4px;" onclick="applyPreset('web')">🌐 Web Optimized</div>
             <div class="preset-badge" style="margin-top: 4px;" onclick="applyPreset('4k')">🎥 4K Quality</div>
+            <div class="preset-badge" style="margin-top: 4px;" onclick="applyPreset('nvenc-fast')">⚡ NVENC Fast</div>
           </div>
           <div style="margin-bottom: 12px;">
             <div style="font-size: 11px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px; text-transform: uppercase;">Audio Presets</div>
@@ -2163,9 +2958,29 @@
       `;
     }
 
-    window.applyPreset = function applyPreset(preset) {
-      logMessage(`Applied preset: ${preset}`, 'success');
-      // Apply preset logic here
+    window.applyPreset = function applyPreset(presetName) {
+      const presets = {
+        'high-quality': { 'video-format': 'mkv', 'video-codec': 'libx264', 'video-crf': '18', 'video-preset': 'slow', 'audio-codec': 'aac', 'audio-bitrate': '256', 'video-resolution': '' },
+        'web':          { 'video-format': 'mp4', 'video-codec': 'libx264', 'video-crf': '23', 'video-preset': 'medium', 'audio-codec': 'aac', 'audio-bitrate': '128', 'video-resolution': '720' },
+        '4k':           { 'video-format': 'mkv', 'video-codec': 'libx265', 'video-crf': '20', 'video-preset': 'slow', 'audio-codec': 'aac', 'audio-bitrate': '320', 'video-resolution': '2160' },
+        'nvenc-fast':   { 'video-format': 'mkv', 'video-codec': 'h264_nvenc', 'video-crf': '23', 'video-preset': 'medium', 'audio-codec': 'aac', 'audio-bitrate': '192', 'hw-accel': 'nvenc' },
+        'audio-high':   { 'audio-codec': 'aac', 'audio-bitrate': '320', 'audio-samplerate': '48000' },
+        'audio-medium': { 'audio-codec': 'aac', 'audio-bitrate': '192', 'audio-samplerate': '44100' }
+      };
+
+      const preset = presets[presetName];
+      if (!preset) return;
+
+      Object.entries(preset).forEach(([id, value]) => {
+        const el = document.getElementById(id);
+        if (el) el.value = value;
+      });
+
+      updateSettingsSummary();
+      logMessage(`Applied preset: ${presetName}`, 'success');
+
+      // Switch to settings view to show the changes
+      switchView('settings', document.querySelectorAll('.activity-item')[1]);
     };
 
     // Help sidebar
@@ -2197,7 +3012,7 @@
             <div style="font-weight: 600; margin-bottom: 8px; color: var(--text-bright);">About</div>
             <div style="color: var(--text-secondary);">
               FFmpeg Converter Pro v2.0.0<br>
-              Created by <span style="color: var(--mint-accent);">Clay MacDonald</span><br>
+              Created by <span style="color: var(--mint-accent);">Clay</span><br>
               <a href="#" onclick="openGitHub(); return false;" style="color: var(--mint-accent); text-decoration: none;">GitHub Repository</a>
             </div>
           </div>
@@ -2222,17 +3037,21 @@
     }
 
     function showAbout() {
-      alert('FFmpeg Converter Pro v2.0.0\n\nCreated by Clay MacDonald\nGitHub: github.com/Claymaver/ffmpeg-converter-pro\n\nBuilt with Electron + FFmpeg\nInspired by VS Code');
+      alert('FFmpeg Converter Pro v2.0.0\n\nCreated by Clay\nGitHub: github.com/yourusername/ffmpeg-converter-pro\n\nBuilt with Electron + FFmpeg\nInspired by VS Code');
     }
 
     window.openGitHub = function openGitHub() {
-      window.electronAPI.openExternal('https://github.com/Claymaver/ffmpeg-converter-pro');
+      window.electronAPI.openExternal('https://github.com/yourusername/ffmpeg-converter-pro');
     };
 
     window.selectOutputFolder = async function selectOutputFolder() {
-      const folder = await window.electronAPI.selectFolder();
-      if (folder && folder.length > 0) {
-        document.getElementById('output-folder').value = folder[0];
+      try {
+        const folder = await window.electronAPI.selectOutputFolder();
+        if (folder) {
+          document.getElementById('output-folder').value = folder;
+        }
+      } catch (error) {
+        console.error('Error selecting output folder:', error);
       }
     }
 
@@ -2293,16 +3112,23 @@
 
     // Progress tracking
     window.electronAPI.onConversionProgress((data) => {
-      const { fileIndex, progress, speed, eta } = data;
-      const statusDot = document.getElementById(`status-${fileIndex}`);
-      
-      if (statusDot) {
-        if (progress >= 100) {
-          statusDot.classList.remove('processing');
-          statusDot.classList.add('success');
-        } else {
-          statusDot.classList.add('processing');
-        }
+      const { fileIndex, progress, speed, eta, passLabel } = data;
+      const statusEl = document.getElementById(`status-${fileIndex}`);
+
+      if (statusEl) {
+        const pct = Math.round(progress || 0);
+        statusEl.className = 'file-status-label processing';
+        statusEl.textContent = passLabel ? `${passLabel} ${pct}%` : `${pct}%`;
+      }
+
+      // Update batch status in status bar
+      const batchStatusText = document.getElementById('batch-status-text');
+      if (batchStatusText) {
+        let statusParts = [];
+        if (passLabel) statusParts.push(passLabel);
+        if (speed) statusParts.push(speed);
+        if (eta) statusParts.push(`ETA ${eta}`);
+        batchStatusText.textContent = statusParts.join(' — ');
       }
     });
 
@@ -2329,7 +3155,6 @@
     });
 
     // Conversion functionality
-    let isConverting = false;
 
     function updateConvertButton() {
       const btn = document.getElementById('convert-btn');
@@ -2366,7 +3191,23 @@
 
     window.startConversion = async function startConversion() {
       if (isConverting || selectedFiles.length === 0) return;
-      
+
+      // Check FFmpeg availability
+      const ffmpegCheck = await window.electronAPI.checkFFmpeg();
+      if (!ffmpegCheck.available) {
+        logMessage('FFmpeg not available — install FFmpeg first', 'error');
+        alert('FFmpeg is not installed. Please install FFmpeg and restart the app.');
+        return;
+      }
+
+      // Confirm if replacing originals
+      const replaceOriginal = document.getElementById('replace-original')?.checked ?? false;
+      if (replaceOriginal) {
+        if (!confirm(`⚠️ WARNING: This will REPLACE ${selectedFiles.length} original file(s)!\n\nEach file will be replaced immediately after conversion.\nThis cannot be undone.\n\nContinue?`)) {
+          return;
+        }
+      }
+
       isConverting = true;
       updateConvertButton();
       
@@ -2383,9 +3224,28 @@
       }
       
       clearPanel();
-      logMessage('Starting batch conversion...', 'info');
-      
+      clearProblems();
+
+      let successCount = 0;
+      let failCount = 0;
+
+      // Show batch progress
+      const batchProgress = document.getElementById('batch-progress');
+      const batchProgressFill = document.getElementById('batch-progress-fill');
+      const batchStatus = document.getElementById('batch-status');
+      if (batchProgress) batchProgress.classList.remove('hidden');
+      if (batchProgressFill) batchProgressFill.style.width = '0%';
+      if (batchStatus) batchStatus.style.display = 'inline-flex';
+
+      logMessage(`Starting batch conversion of ${selectedFiles.length} file${selectedFiles.length === 1 ? '' : 's'}...`, 'info');
+
       // Collect settings
+      const sizeTargetMode = document.getElementById('size-target-mode')?.value || '';
+      let targetSizeMB = 0;
+      if (sizeTargetMode === 'episode') targetSizeMB = 350;
+      else if (sizeTargetMode === 'movie') targetSizeMB = 2816;
+      else if (sizeTargetMode === 'custom') targetSizeMB = parseInt(document.getElementById('size-target-mb')?.value) || 0;
+
       const settings = {
         videoFormat: document.getElementById('video-format')?.value || 'mp4',
         videoCodec: document.getElementById('video-codec')?.value || 'libx264',
@@ -2398,51 +3258,134 @@
         audioSamplerate: document.getElementById('audio-samplerate')?.value || '',
         audioChannels: document.getElementById('audio-channels')?.value || '',
         subtitleMode: document.getElementById('subtitle-mode')?.value || 'copy',
+
+        // Size target
+        targetSizeMB: targetSizeMB,
+
+        // Output settings
+        useSourceFolder: document.getElementById('use-source-folder')?.checked ?? false,
         outputFolder: document.getElementById('output-folder')?.value || '',
+        replaceOriginal: document.getElementById('replace-original')?.checked ?? false,
+        overwriteExisting: document.getElementById('overwrite-existing')?.checked ?? false,
+
+        // Naming settings
         namingPattern: document.getElementById('naming-pattern')?.value || 'original',
-        hwAccel: document.getElementById('hw-accel')?.value || ''
+        customNamingPattern: document.getElementById('custom-pattern')?.value || '',
+
+        // Other settings
+        hwAccel: document.getElementById('hw-accel')?.value || '',
+
+        // Overwrite mode
+        overwriteMode: document.getElementById('overwrite-existing')?.checked ? 'yes' : 'no'
       };
-      
+
+      if (targetSizeMB > 0) {
+        logMessage(`Size target mode: ${targetSizeMB} MB per file (2-pass encoding)`, 'info');
+      }
+
       // Convert each file
       for (let i = 0; i < selectedFiles.length; i++) {
         const file = selectedFiles[i];
         const filename = file.split(/[/\\]/).pop();
-        
-        logMessage(`[${i + 1}/${selectedFiles.length}] Converting: ${filename}`, 'info');
-        
+
+        // Mark as processing
+        const statusEl = document.getElementById(`status-${i}`);
+        if (statusEl) {
+          statusEl.className = 'file-status-label processing';
+          statusEl.textContent = '0%';
+        }
+
+        // Update batch progress
+        if (batchProgressFill) {
+          batchProgressFill.style.width = `${(i / selectedFiles.length) * 100}%`;
+        }
+
+        const origSize = fileMetadata[file]?.size;
+        const sizeInfo = origSize ? ` (${formatFileSize(origSize)})` : '';
+        logMessage(`[${i + 1}/${selectedFiles.length}] Converting: ${filename}${sizeInfo}`, 'info');
+
         try {
+          const startTime = Date.now();
           const result = await window.electronAPI.convertFile(file, settings, i);
-          
+          const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+
           if (result.success) {
-            logMessage(`✓ Success: ${result.output}`, 'success');
-            const statusDot = document.getElementById(`status-${i}`);
-            if (statusDot) {
-              statusDot.classList.remove('processing');
-              statusDot.classList.add('success');
+            successCount++;
+
+            if (result.skipped) {
+              // File was skipped (already under target, or already exists)
+              if (statusEl) {
+                statusEl.className = 'file-status-label skipped';
+                statusEl.textContent = 'Skip';
+              }
+              logMessage(`  Skipped: ${result.message || 'already OK'}`, 'info');
+            } else if (statusEl) {
+              statusEl.className = 'file-status-label success';
+              statusEl.textContent = 'Done';
+            }
+
+            // Show size savings if available
+            const origSize = fileMetadata[file]?.size;
+            const outputSizeStr = result.outputSize ? formatFileSize(result.outputSize) : '';
+            if (result.outputSize && origSize && origSize > result.outputSize) {
+              const saved = origSize - result.outputSize;
+              const pct = ((saved / origSize) * 100).toFixed(0);
+              let sizeMsg = `  ${formatFileSize(origSize)} → ${outputSizeStr} — saved ${formatFileSize(saved)} (${pct}%) in ${elapsed}s`;
+              if (settings.targetSizeMB > 0) {
+                const targetBytes = settings.targetSizeMB * 1024 * 1024;
+                const accuracy = ((result.outputSize / targetBytes) * 100).toFixed(0);
+                sizeMsg += ` [target accuracy: ${accuracy}%]`;
+              }
+              logMessage(sizeMsg, 'success');
+            } else if (result.outputSize) {
+              logMessage(`  Output: ${outputSizeStr} in ${elapsed}s`, 'success');
+            } else {
+              logMessage(`  Complete in ${elapsed}s`, 'success');
             }
           } else {
-            logMessage(`✗ Error: ${result.error}`, 'error');
-            
-            // Add to Problems tab with solution
-            const solution = getSolutionForError(result.error);
-            addProblem(filename, 'error', result.error, solution);
-            
-            const statusDot = document.getElementById(`status-${i}`);
-            if (statusDot) {
-              statusDot.classList.remove('processing');
-              statusDot.classList.add('error');
+            failCount++;
+            logMessage(`  Failed: ${result.error}`, 'error');
+
+            if (statusEl) {
+              statusEl.className = 'file-status-label error';
+              statusEl.textContent = 'Error';
             }
+
+            const solution = getSolutionForError(result.error);
+            addProblem(filename, 'error', result.error, solution, result.details);
           }
         } catch (error) {
-          logMessage(`✗ Unexpected error: ${error.message}`, 'error');
-          
-          // Add to Problems tab
+          failCount++;
+          logMessage(`  Unexpected error: ${error.message}`, 'error');
+
+          if (statusEl) {
+            statusEl.className = 'file-status-label error';
+            statusEl.textContent = 'Error';
+          }
+
           const solution = getSolutionForError(error.message);
-          addProblem(filename, 'error', error.message, solution);
+          addProblem(filename, 'error', error.message, solution, null);
         }
       }
-      
-      logMessage('\\n✓ Batch conversion complete!', 'success');
+
+      // Finalize
+      if (batchProgressFill) batchProgressFill.style.width = '100%';
+
+      const summary = [];
+      if (successCount > 0) summary.push(`${successCount} succeeded`);
+      if (failCount > 0) summary.push(`${failCount} failed`);
+
+      logMessage(`Batch complete: ${summary.join(', ')}`, successCount > 0 && failCount === 0 ? 'success' : 'warning');
+
+      // Update status bar
+      const batchStatusText = document.getElementById('batch-status-text');
+      if (batchStatusText) batchStatusText.textContent = `Done: ${summary.join(', ')}`;
+
+      // Fade out progress bar after a moment
+      setTimeout(() => {
+        if (batchProgress) batchProgress.classList.add('hidden');
+      }, 3000);
+
       isConverting = false;
       updateConvertButton();
     }
