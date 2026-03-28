@@ -6,54 +6,55 @@
   "scripts": {
     "start": "electron .",
     "dev": "electron . --enable-logging",
-    "clean": "npx rimraf node_modules package-lock.json",
-    "fresh": "npm run clean && npm install",
+    "clean": "rimraf dist node_modules package-lock.json",
+    "fresh": "npm run clean && npm ci",
     "build": "electron-builder",
     "build:win": "electron-builder --win --x64",
     "build:win32": "electron-builder --win --ia32",
     "build:win-all": "electron-builder --win --x64 --ia32",
     "build:mac": "electron-builder --mac",
-    "build:mac-intel": "electron-builder --mac --x64",
-    "build:mac-arm": "electron-builder --mac --arm64",
     "build:mac-universal": "electron-builder --mac --universal",
     "build:linux": "electron-builder --linux",
-    "build:linux-deb": "electron-builder --linux deb",
-    "build:linux-appimage": "electron-builder --linux AppImage",
     "build:linux-all": "electron-builder --linux deb AppImage rpm",
     "build:all": "electron-builder --win --mac --linux",
     "dist": "npm run build:all",
     "pack": "electron-builder --dir",
     "postinstall": "electron-builder install-app-deps"
   },
-  "keywords": ["ffmpeg", "video", "converter", "media", "transcoding"],
-  "author": { "name": "Clay", "email": "Claymaver@proton.me" },
-  "license": "MIT",
-  "repository": { "type": "git", "url": "https://github.com/Claymaver/ffmpeg-converter-pro" },
   "devDependencies": {
-    "electron": "^25.3.0",
+    "electron": "^39.2.7",
     "electron-builder": "^25.1.8",
     "rimraf": "^5.0.0"
   },
-  "engines": { "node": ">=18.0.0" },
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "build": {
     "appId": "com.clay.ffmpeg-converter-pro",
     "productName": "FFmpeg Converter Pro",
+    "copyright": "Copyright © 2026 Clay",
     "compression": "normal",
     "asar": true,
-    "overwrite": true,
     "files": ["src/**/*", "package.json"],
     "extraFiles": [
-      { "from": "build/", "to": "resources/", "filter": ["**/*"] }
+      {
+        "from": "build/",
+        "to": "resources/",
+        "filter": ["**/*"]
+      }
     ],
-    "directories": { "buildResources": "build", "output": "dist" },
+    "directories": {
+      "buildResources": "build",
+      "output": "dist"
+    },
     "win": {
       "target": [
-        { "target": "nsis", "arch": ["x64", "ia32"] },
-        { "target": "portable", "arch": ["x64"] }
+        {"target": "nsis", "arch": ["x64","ia32"]},
+        {"target": "portable", "arch": ["x64"]}
       ],
       "icon": "build/icon.ico",
       "artifactName": "${productName}-${version}-${arch}-Setup.${ext}",
-      "signtoolOptions": { "publisherName": "Clay MacDonald" },
+      "signtoolOptions": {"publisherName": "Clay MacDonald"},
       "verifyUpdateCodeSignature": false,
       "requestedExecutionLevel": "asInvoker"
     },
@@ -71,12 +72,13 @@
       "runAfterFinish": true,
       "menuCategory": true
     },
-    "portable": { "artifactName": "${productName}-${version}-${arch}-Portable.${ext}" },
+    "portable": {
+      "artifactName": "${productName}-${version}-${arch}-Portable.${ext}"
+    },
     "mac": {
-      "overwrite": true,
       "target": [
-        { "target": "dmg", "arch": ["x64", "arm64", "universal"] },
-        { "target": "zip", "arch": ["x64", "arm64", "universal"] }
+        {"target": "dmg", "arch": ["x64","arm64","universal"]},
+        {"target": "zip", "arch": ["x64","arm64","universal"]}
       ],
       "icon": "build/icon.icns",
       "category": "public.app-category.video",
@@ -88,27 +90,23 @@
       "extendInfo": {
         "NSCameraUsageDescription": "This app does not use the camera",
         "NSMicrophoneUsageDescription": "This app does not use the microphone"
-      },
-      "fileAssociations": [
-        { "ext": "mp4", "name": "MP4 Video" },
-        { "ext": "mkv", "name": "MKV Video" }
-      ]
+      }
     },
     "dmg": {
       "contents": [
-        { "x": 130, "y": 220 },
-        { "x": 410, "y": 220, "type": "link", "path": "/Applications" }
+        {"x": 130, "y": 220},
+        {"x": 410, "y": 220, "type": "link", "path": "/Applications"}
       ],
       "title": "${productName} ${version}",
       "icon": "build/icon.icns",
       "background": "build/background.png",
-      "window": { "width": 540, "height": 380 }
+      "window": {"width": 540, "height": 380}
     },
     "linux": {
       "target": [
-        { "target": "AppImage", "arch": ["x64"] },
-        { "target": "deb", "arch": ["x64"] },
-        { "target": "rpm", "arch": ["x64"] }
+        {"target": "AppImage", "arch": ["x64"]},
+        {"target": "deb", "arch": ["x64"]},
+        {"target": "rpm", "arch": ["x64"]}
       ],
       "icon": "build/icons",
       "category": "AudioVideo;Video;AudioVideoEditing",
@@ -123,22 +121,6 @@
         "Categories": "AudioVideo;Video;AudioVideoEditing",
         "StartupNotify": "true"
       }
-    },
-    "deb": {
-      "depends": [
-        "gconf2",
-        "libnotify4",
-        "libnss3",
-        "libxtst6",
-        "libayatana-appindicator3-1"
-      ],
-      "priority": "optional",
-      "afterInstall": "build/linux-after-install.sh",
-      "afterRemove": "build/linux-after-remove.sh"
-    },
-    "rpm": {
-      "depends": ["libXScrnSaver", "libappindicator", "libnotify"],
-      "fpm": ["--rpm-rpmbuild-define=_build_id_links none"]
     }
   }
 }
