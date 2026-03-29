@@ -82,7 +82,6 @@
       ],
       "title": "${productName} ${version}",
       "icon": "build/icon.icns",
-      "background": "build/background.png",
       "window": { "width": 540, "height": 380 }
     },
     "linux": {
