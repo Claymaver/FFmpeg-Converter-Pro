@@ -33,7 +33,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
           # IMPORTANT: disable release
-          release: true
+          release: false
 
           # optional: pass args if needed
           # args: "--publish never"
