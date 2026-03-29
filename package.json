@@ -10,7 +10,7 @@
     "dev": "electron . --enable-logging",
     "clean": "rimraf node_modules package-lock.json dist",
     "fresh": "npm run clean && npm install",
-    "build": "electron-builder",
+    "build": "echo \"No build step\"",
     "dist": "electron-builder --win --mac --linux",
     "pack": "electron-builder --dir",
     "postinstall": "electron-builder install-app-deps"
@@ -72,14 +72,8 @@
       "icon": "build/icon.icns",
       "category": "public.app-category.video",
       "artifactName": "${productName}-${version}-${arch}.${ext}",
-      "hardenedRuntime": true,
-      "gatekeeperAssess": false,
-      "entitlements": "build/entitlements.mac.plist",
-      "entitlementsInherit": "build/entitlements.mac.plist",
-      "extendInfo": {
-        "NSCameraUsageDescription": "This app does not use the camera",
-        "NSMicrophoneUsageDescription": "This app does not use the microphone"
-      }
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false
     },
     "dmg": {
       "contents": [

@@ -1,154 +1,39 @@
-name: Build & Release FFmpeg Converter Pro
+name: Build
 
-on:
+on: 
   push:
-    branches: [ main ]
-    tags:
-      - 'v*'
-  pull_request:
+    branches:
+      - 'main'
 
 jobs:
   build:
-    name: Build on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
 
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-
-    outputs:
-      version: ${{ steps.version.outputs.version }}
+        os: [ubuntu-latest, windows-latest, macos-latest]
 
     steps:
-      # ------------------------
-      # Checkout
-      # ------------------------
-      - name: Checkout
-        uses: actions/checkout@v4
+      # Step 1: Checkout the repository
+      - name: Check out repository
+        uses: actions/checkout@v5
 
-      # ------------------------
-      # Get version
-      # ------------------------
-      - name: Get version
-        id: version
-        shell: bash
-        run: |
-          VERSION=$(node -p "require('./package.json').version")
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-
-      # ------------------------
-      # Setup Node
-      # ------------------------
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      # Step 2: Setup Node
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
         with:
           node-version: 20
-          cache: npm
+          cache: 'npm'
 
-      # ------------------------
-      # Cache Electron
-      # ------------------------
-      - name: Cache Electron
-        uses: actions/cache@v4
+      # Step 3: Build using electron-builder action
+      - name: Build Electron app
+        uses: samuelmeuli/action-electron-builder@v1
         with:
-          path: |
-            ~/.cache/electron
-            ~/.cache/electron-builder
-            ~/Library/Caches/electron
-            ~/Library/Caches/electron-builder
-          key: ${{ runner.os }}-electron-${{ hashFiles('package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-electron-
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
-      # ------------------------
-      # Install deps
-      # ------------------------
-      - name: Install dependencies
-        run: npm install
+          # IMPORTANT: disable release
+          release: true
 
-      # ------------------------
-      # Clean build folders
-      # ------------------------
-      - name: Clean dist
-        run: npx rimraf dist
-
-      # ------------------------
-      # macOS: Remove old icon leftovers
-      # ------------------------
-      - name: Remove old mac icons
-        if: matrix.os == 'macos-latest'
-        run: rm -f dist/mac-universal-*-temp/**/*.icns || true
-
-      # ------------------------
-      # Linux deps
-      # ------------------------
-      - name: Install Linux dependencies
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-          sudo apt update
-          sudo apt install -y fakeroot dpkg rpm
-
-      # ------------------------
-      # Build per OS
-      # ------------------------
-      - name: Build Linux
-        if: matrix.os == 'ubuntu-latest'
-        run: npx electron-builder --linux AppImage deb rpm
-
-      - name: Build macOS
-        if: matrix.os == 'macos-latest'
-        run: npx electron-builder --mac --universal
-
-      - name: Build Windows
-        if: matrix.os == 'windows-latest'
-        run: npx electron-builder --win --x64 --ia32
-        env:
-          CSC_IDENTITY_AUTO_DISCOVERY: false 
-
-      # ------------------------
-      # Upload installers
-      # ------------------------
-      - name: Upload installers
-        uses: actions/upload-artifact@v4
-        with:
-          name: installers-${{ matrix.os }}
-          path: |
-            dist/**/*.exe
-            dist/**/*.msi
-            dist/**/*.dmg
-            dist/**/*.AppImage
-            dist/**/*.deb
-            dist/**/*.rpm
-          if-no-files-found: warn
-
-  # ============================
-  # Draft Release
-  # ============================
-  release:
-    name: Draft Release
-    needs: build
-    if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-
-      - name: Create Draft Release
-        uses: softprops/action-gh-release@v2
-        with:
-          name: v${{ needs.build.outputs.version }}
-          tag_name: ${{ github.ref_name }}
-          draft: true
-          files: |
-            artifacts/**/*.exe
-            artifacts/**/*.msi
-            artifacts/**/*.dmg
-            artifacts/**/*.AppImage
-            artifacts/**/*.deb
-            artifacts/**/*.rpm
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # optional: pass args if needed
+          # args: "--publish never"
