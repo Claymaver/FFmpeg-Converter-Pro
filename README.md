@@ -4,9 +4,9 @@ A professional, easy-to-use desktop application for batch video conversion power
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)
-![Version](https://img.shields.io/badge/version-2.0.0-green.svg)
+![Version](https://img.shields.io/badge/version-2.1.3-green.svg)
 
-## 🎬 Features
+## Features
 
 - **Batch Conversion** - Convert multiple videos at once
 - **Individual Progress Tracking** - See progress on each file
@@ -19,7 +19,7 @@ A professional, easy-to-use desktop application for batch video conversion power
 - **FFmpeg Installer** - Install FFmpeg directly from the app
 - **Large Activity Log** - See detailed conversion logs
 
-## 🚀 Quick Start
+## Quick Start
 
 1. Install the application
 2. Click "Install FFmpeg" if not already installed
@@ -27,13 +27,13 @@ A professional, easy-to-use desktop application for batch video conversion power
 4. Choose a preset or customize settings
 5. Click "Start Conversion"
 
-## 📋 Requirements
+## Requirements
 
 - **FFmpeg** must be installed on your system
   - The app can install it for you automatically on Windows/macOS
   - Linux: Install via package manager (`apt install ffmpeg`)
 
-## 🛠️ Building from Source
+## Building from Source
 
 ### Prerequisites
 
@@ -66,7 +66,7 @@ npm run build:mac      # macOS
 npm run build:linux    # Linux
 ```
 
-## 📖 Usage
+## Usage
 
 ### Quick Presets
 
@@ -89,7 +89,7 @@ Navigate to the tabs to customize:
 - **Clean filenames** - Removes quality tags and brackets
 - **Replace original files** - ⚠️ Deletes originals after conversion (use with caution!)
 
-## 🎯 Features in Detail
+## Features in Detail
 
 ### Batch Processing
 - Add entire folders with recursive scanning
@@ -106,7 +106,7 @@ Navigate to the tabs to customize:
 - Built-in installer for Windows (winget) and macOS (Homebrew)
 - Manual installation instructions for Linux
 
-## 🐛 Troubleshooting
+## Troubleshooting
 
 ### FFmpeg Not Found
 
@@ -142,7 +142,7 @@ npm install
 npm run build
 ```
 
-## 🤝 Contributing
+## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
@@ -152,16 +152,12 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
-## 📝 License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - Built with [Electron](https://www.electronjs.org/)
 - Powered by [FFmpeg](https://ffmpeg.org/)
 - Uses [fluent-ffmpeg](https://github.com/fluent-ffmpeg/node-fluent-ffmpeg)
-
----
-
-**Made with ❤️ for the video conversion community**
