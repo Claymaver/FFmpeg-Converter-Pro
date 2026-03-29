@@ -23,45 +23,79 @@
   "engines": {
     "node": ">=18.0.0"
   },
- "build": {
-  "appId": "com.claymaver.ffmpegconverterpro",
-  "productName": "FFmpeg Converter Pro",
-  "files": [
-    "dist/**/*",
-    "node_modules/**/*",
-    "package.json"
-  ],
-  "directories": {
-    "buildResources": "build"
-  },
-  "linux": {
-    "target": ["AppImage", "deb", "rpm"],
-    "category": "Utility",
-    "icon": "build/icon.png"
-  },
-  "win": {
-    "target": ["nsis", "portable"],
-    "icon": "build/icon.ico"
-  },
-  "mac": {
-    "target": ["dmg", "zip"],
-    "icon": "build/icon.icns",
-    "hardenedRuntime": false,
-    "gatekeeperAssess": false,
-    "entitlements": null,
-    "entitlementsInherit": null
-  },
-  "dmg": {
-    "contents": [
-      { "x": 130, "y": 220 },
-      { "x": 410, "y": 220, "type": "link", "path": "/Applications" }
-    ]
-  },
-  "publish": [
-    {
-      "provider": "github",
-      "releaseType": "draft"
+  "build": {
+    "appId": "com.clay.ffmpeg-converter-pro",
+    "productName": "FFmpeg Converter Pro",
+    "asar": true,
+    "compression": "normal",
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "build/",
+        "to": "resources",
+        "filter": ["**/*", "!icon.icns", "!icon.ico", "!icon.png"]
+      }
+    ],
+    "directories": {
+      "buildResources": "build",
+      "output": "dist"
+    },
+    "win": {
+      "target": [
+        { "target": "nsis", "arch": ["x64", "ia32"] },
+        { "target": "portable", "arch": ["x64"] }
+      ],
+      "icon": "build/icon.ico",
+      "artifactName": "${productName}-${version}-${arch}-Setup.${ext}",
+      "signtoolOptions": { "publisherName": "Clay MacDonald" },
+      "requestedExecutionLevel": "asInvoker"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "FFmpeg Converter Pro",
+      "license": "LICENSE",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico",
+      "deleteAppDataOnUninstall": false,
+      "runAfterFinish": true,
+      "menuCategory": true
+    },
+    "mac": {
+      "target": ["dmg", "zip"],
+      "icon": "build/icon.icns",
+      "category": "public.app-category.video",
+      "artifactName": "${productName}-${version}-${arch}.${ext}",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "extendInfo": {
+        "NSCameraUsageDescription": "This app does not use the camera",
+        "NSMicrophoneUsageDescription": "This app does not use the microphone"
+      }
+    },
+    "dmg": {
+      "contents": [
+        { "x": 130, "y": 220 },
+        { "x": 410, "y": 220, "type": "link", "path": "/Applications" }
+      ],
+      "title": "${productName} ${version}",
+      "icon": "build/icon.icns",
+      "background": "build/background.png",
+      "window": { "width": 540, "height": 380 }
+    },
+    "linux": {
+      "target": ["AppImage", "deb", "rpm"],
+      "icon": "build/icons",
+      "category": "AudioVideo;Video;AudioVideoEditing",
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
     }
-  ]
-}
+  }
 }
