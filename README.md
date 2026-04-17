@@ -4,7 +4,7 @@ A professional, easy-to-use desktop application for batch video conversion power
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)
-![Version](https://img.shields.io/badge/version-2.1.3-green.svg)
+![Version](https://img.shields.io/badge/version-2.1.5-green.svg)
 
 ## Features
 
