@@ -1913,6 +1913,7 @@
                   <option value="select">Select Specific</option>
                   <option value="burn">Burn Into Video</option>
                 </select>
+                <span class="setting-help" id="subtitle-mode-help"></span>
               </div>
             </div>
           </div>
@@ -2150,6 +2151,96 @@
     let currentView = 'explorer';
     let activeTab = 'welcome';
     let isConverting = false;
+    let customPresets = {};
+
+    const BUILTIN_PRESETS = {
+      'high-quality': { 'video-format': 'mkv', 'video-codec': 'libx264', 'video-crf': '18', 'video-preset': 'slow', 'audio-codec': 'aac', 'audio-bitrate': '256', 'video-resolution': '' },
+      'web':          { 'video-format': 'mp4', 'video-codec': 'libx264', 'video-crf': '23', 'video-preset': 'medium', 'audio-codec': 'aac', 'audio-bitrate': '128', 'video-resolution': '720' },
+      '4k':           { 'video-format': 'mkv', 'video-codec': 'libx265', 'video-crf': '20', 'video-preset': 'slow', 'audio-codec': 'aac', 'audio-bitrate': '320', 'video-resolution': '2160' },
+      'nvenc-fast':   { 'video-format': 'mkv', 'video-codec': 'h264_nvenc', 'video-crf': '23', 'video-preset': 'medium', 'audio-codec': 'aac', 'audio-bitrate': '192', 'hw-accel': 'nvenc' },
+      'audio-high':   { 'audio-codec': 'aac', 'audio-bitrate': '320', 'audio-samplerate': '48000' },
+      'audio-medium': { 'audio-codec': 'aac', 'audio-bitrate': '192', 'audio-samplerate': '44100' }
+    };
+
+    const PRESET_SETTING_IDS = [
+      'video-format', 'video-codec', 'video-crf', 'size-target-mode', 'size-target-mb',
+      'video-resolution', 'video-fps', 'video-preset', 'video-pixfmt', 'video-gop',
+      'custom-video-args', 'audio-codec', 'audio-bitrate', 'audio-samplerate',
+      'audio-channels', 'subtitle-mode', 'use-source-folder', 'output-folder',
+      'naming-pattern', 'custom-pattern', 'hw-accel',
+      'overwrite-existing'
+    ];
+
+    function escapeHtmlText(value) {
+      return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function captureCurrentSettingsAsPreset() {
+      const data = {};
+      PRESET_SETTING_IDS.forEach((id) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        data[id] = el.type === 'checkbox' ? !!el.checked : (el.value ?? '');
+      });
+      return data;
+    }
+
+    function applyPresetData(preset) {
+      Object.entries(preset || {}).forEach(([id, value]) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        if (el.type === 'checkbox') {
+          el.checked = !!value;
+        } else {
+          el.value = value;
+        }
+      });
+    }
+
+    async function loadCustomPresets() {
+      if (!window.electronAPI?.loadPresets) return;
+      try {
+        const loaded = await window.electronAPI.loadPresets();
+        if (loaded && typeof loaded === 'object' && !Array.isArray(loaded)) {
+          customPresets = Object.fromEntries(
+            Object.entries(loaded).filter(([, value]) => value && typeof value === 'object' && !Array.isArray(value))
+          );
+        } else {
+          customPresets = {};
+        }
+      } catch (error) {
+        console.error('Failed to load presets:', error);
+        customPresets = {};
+      }
+    }
+
+    async function saveCustomPresets() {
+      if (!window.electronAPI?.savePresets) {
+        throw new Error('Preset API unavailable');
+      }
+      const result = await window.electronAPI.savePresets(customPresets);
+      if (result && result.success === false) {
+        throw new Error(result.error || 'Failed to save presets');
+      }
+    }
+
+    function updateSubtitleModeHelp() {
+      const help = document.getElementById('subtitle-mode-help');
+      const format = document.getElementById('video-format')?.value;
+      const subtitleMode = document.getElementById('subtitle-mode')?.value;
+      if (!help) return;
+
+      if (format === 'mp4' && subtitleMode === 'copy') {
+        help.textContent = 'MP4 will convert copied text subtitles to mov_text for compatibility.';
+      } else {
+        help.textContent = '';
+      }
+    }
 
     // Sidebar resize
     let isResizing = false;
@@ -2168,6 +2259,7 @@
         alert('Critical Error: Application not properly initialized.\n\nPlease check:\n1. preload.js is in same folder as main.js\n2. package.json "main" field is correct\n3. Restart the application');
       }
       
+      await loadCustomPresets();
       await checkFFmpegStatus();
       updateFileCount();
       
@@ -2204,6 +2296,16 @@
         if (crfHelp) crfHelp.textContent = active ? 'Overridden by size target' : 'Lower = better (18-28)';
 
         updateSettingsSummary();
+        updateSubtitleModeHelp();
+      });
+
+      document.getElementById('video-format')?.addEventListener('change', () => {
+        updateSettingsSummary();
+        updateSubtitleModeHelp();
+      });
+
+      document.getElementById('subtitle-mode')?.addEventListener('change', () => {
+        updateSubtitleModeHelp();
       });
 
       // Auto-set HW accel decoding to match GPU encoder codec
@@ -2225,10 +2327,12 @@
           }
         }
         updateSettingsSummary();
+        updateSubtitleModeHelp();
       });
 
       // Initialize drag-and-drop
       initDragAndDrop();
+      updateSubtitleModeHelp();
 
       console.log('=== Initialization Complete ===');
     });
@@ -2932,6 +3036,19 @@
 
     // Presets sidebar
     function loadPresetsSidebar() {
+      const customPresetNames = Object.keys(customPresets).sort((a, b) => a.localeCompare(b));
+      const customPresetsHtml = customPresetNames.length > 0
+        ? customPresetNames.map((name) => {
+            const encodedName = encodeURIComponent(name);
+            return `
+              <div style="display: flex; align-items: center; gap: 6px; margin-top: 4px;">
+                <div class="preset-badge" style="flex: 1; margin-top: 0;" onclick="applyCustomPreset('${encodedName}')">${escapeHtmlText(name)}</div>
+                <button class="sidebar-btn" title="Delete preset" onclick="deleteCustomPreset('${encodedName}')">×</button>
+              </div>
+            `;
+          }).join('')
+        : '<div style="font-size: 11px; color: var(--text-muted);">No custom presets yet</div>';
+
       const container = document.getElementById('sidebar-content');
       container.innerHTML = `
         <div style="padding: 8px;">
@@ -2947,7 +3064,11 @@
             <div class="preset-badge" onclick="applyPreset('audio-high')">🎵 High Quality</div>
             <div class="preset-badge" style="margin-top: 4px;" onclick="applyPreset('audio-medium')">🎶 Medium Quality</div>
           </div>
-          <button class="btn btn-secondary" style="width: 100%; margin-top: 12px;">
+          <div style="margin-bottom: 12px;">
+            <div style="font-size: 11px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px; text-transform: uppercase;">Custom Presets</div>
+            ${customPresetsHtml}
+          </div>
+          <button class="btn btn-secondary" style="width: 100%; margin-top: 12px;" onclick="saveCurrentPreset()">
             <svg class="icon" viewBox="0 0 24 24">
               <line x1="12" y1="5" x2="12" y2="19"></line>
               <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -2958,23 +3079,73 @@
       `;
     }
 
-    window.applyPreset = function applyPreset(presetName) {
-      const presets = {
-        'high-quality': { 'video-format': 'mkv', 'video-codec': 'libx264', 'video-crf': '18', 'video-preset': 'slow', 'audio-codec': 'aac', 'audio-bitrate': '256', 'video-resolution': '' },
-        'web':          { 'video-format': 'mp4', 'video-codec': 'libx264', 'video-crf': '23', 'video-preset': 'medium', 'audio-codec': 'aac', 'audio-bitrate': '128', 'video-resolution': '720' },
-        '4k':           { 'video-format': 'mkv', 'video-codec': 'libx265', 'video-crf': '20', 'video-preset': 'slow', 'audio-codec': 'aac', 'audio-bitrate': '320', 'video-resolution': '2160' },
-        'nvenc-fast':   { 'video-format': 'mkv', 'video-codec': 'h264_nvenc', 'video-crf': '23', 'video-preset': 'medium', 'audio-codec': 'aac', 'audio-bitrate': '192', 'hw-accel': 'nvenc' },
-        'audio-high':   { 'audio-codec': 'aac', 'audio-bitrate': '320', 'audio-samplerate': '48000' },
-        'audio-medium': { 'audio-codec': 'aac', 'audio-bitrate': '192', 'audio-samplerate': '44100' }
-      };
+    window.saveCurrentPreset = async function saveCurrentPreset() {
+      const rawName = prompt('Preset name:');
+      if (rawName === null) return;
 
-      const preset = presets[presetName];
+      const presetName = rawName.trim();
+      if (!presetName) {
+        alert('Preset name cannot be empty.');
+        return;
+      }
+
+      if (BUILTIN_PRESETS[presetName]) {
+        alert('That name is reserved by a built-in preset. Choose another name.');
+        return;
+      }
+
+      if (customPresets[presetName]) {
+        const shouldOverwrite = confirm(`Preset "${presetName}" already exists. Overwrite it?`);
+        if (!shouldOverwrite) return;
+      }
+
+      customPresets[presetName] = captureCurrentSettingsAsPreset();
+
+      try {
+        await saveCustomPresets();
+        if (currentView === 'presets') loadPresetsSidebar();
+        logMessage(`Saved preset: ${presetName}`, 'success');
+      } catch (error) {
+        console.error('Failed to save preset:', error);
+        alert(`Failed to save preset: ${error.message}`);
+      }
+    };
+
+    window.applyCustomPreset = function applyCustomPreset(encodedName) {
+      const presetName = decodeURIComponent(encodedName);
+      window.applyPreset(presetName);
+    };
+
+    window.deleteCustomPreset = async function deleteCustomPreset(encodedName) {
+      const presetName = decodeURIComponent(encodedName);
+      if (!customPresets[presetName]) return;
+
+      const shouldDelete = confirm(`Delete preset "${presetName}"?`);
+      if (!shouldDelete) return;
+
+      delete customPresets[presetName];
+      try {
+        await saveCustomPresets();
+        if (currentView === 'presets') loadPresetsSidebar();
+        logMessage(`Deleted preset: ${presetName}`, 'info');
+      } catch (error) {
+        console.error('Failed to delete preset:', error);
+        alert(`Failed to delete preset: ${error.message}`);
+      }
+    };
+
+    window.applyPreset = function applyPreset(presetName) {
+      const preset = BUILTIN_PRESETS[presetName] || customPresets[presetName];
       if (!preset) return;
 
-      Object.entries(preset).forEach(([id, value]) => {
-        const el = document.getElementById(id);
-        if (el) el.value = value;
-      });
+      applyPresetData(preset);
+
+      // Re-run dependent UI behaviors after applying a preset.
+      document.getElementById('size-target-mode')?.dispatchEvent(new Event('change'));
+      document.getElementById('video-codec')?.dispatchEvent(new Event('change'));
+      document.getElementById('naming-pattern')?.dispatchEvent(new Event('change'));
+      toggleOutputFolderMode();
+      updateSubtitleModeHelp();
 
       updateSettingsSummary();
       logMessage(`Applied preset: ${presetName}`, 'success');

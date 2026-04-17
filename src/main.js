@@ -208,6 +208,8 @@ function buildFFmpegArgs(inputPath, outputPath, settings, options = {}) {
   const args = [];
   const { pass, passlogfile } = options;
   const isPass1 = pass === 1;
+  const outputExt = ((settings.videoFormat || path.extname(outputPath).slice(1) || '').toLowerCase());
+  const isMp4Output = outputExt === 'mp4';
 
   const vCodec = settings.videoCodec || '';
   const isNvenc = vCodec.includes('nvenc');
@@ -376,7 +378,13 @@ function buildFFmpegArgs(inputPath, outputPath, settings, options = {}) {
   // === SUBTITLES (skip on pass 1) ===
   if (!isPass1) {
     if (settings.subtitleMode === 'copy') {
-      args.push('-c:s', 'copy');
+      // MP4 cannot mux common text subtitle codecs like subrip via stream copy.
+      // Re-encode subtitles to mov_text for MP4 outputs to avoid header write failures.
+      if (isMp4Output) {
+        args.push('-c:s', 'mov_text');
+      } else {
+        args.push('-c:s', 'copy');
+      }
     } else if (settings.subtitleMode === 'none') {
       args.push('-sn');
     }
