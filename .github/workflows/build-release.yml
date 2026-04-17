@@ -45,3 +45,13 @@ jobs:
             dist/*.AppImage
             dist/*.deb
             dist/*.rpm
+
+      # Step 5: Create GitHub Release
+      - name: Create GitHub Release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: v${{ github.run_number }}
+          name: Release v${{ github.run_number }}
+          body: "Automated release for commit ${{ github.sha }} on ${{ matrix.os }}"
+          draft: false  
+          prerelease: false
