@@ -1,32 +1,34 @@
-name: Build
+name: Build And Release
 
-on: 
+on:
   push:
     branches:
-      - 'main'
+      - main
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
     runs-on: ${{ matrix.os }}
-
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
 
     steps:
-      # Step 1: Checkout the repository
       - name: Check out repository
         uses: actions/checkout@v5
 
-      # Step 2: Setup Node
       - name: Set up Node.js
         uses: actions/setup-node@v5
         with:
           node-version: 20
-          cache: 'npm'
+          cache: npm
 
-      # Step 3: Build using electron-builder action
       - name: Build Electron app
         uses: samuelmeuli/action-electron-builder@v1
         with:
@@ -34,8 +36,7 @@ jobs:
           release: false
           args: "--publish never"
 
-      # Step 4: Upload artifacts
-      - name: Upload artifacts
+      - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
           name: build-${{ matrix.os }}
@@ -45,13 +46,31 @@ jobs:
             dist/*.AppImage
             dist/*.deb
             dist/*.rpm
+            dist/*.zip
+            dist/*.yml
+            dist/*.blockmap
+          if-no-files-found: warn
 
-      # Step 5: Create GitHub Release
-      - name: Create GitHub Release
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: build-*
+          path: release-assets
+          merge-multiple: true
+
+      - name: Create GitHub release and upload assets
         uses: ncipollo/release-action@v1
         with:
-          tag: v${{ github.run_number }}
-          name: Release v${{ github.run_number }}
-          body: "Automated release for commit ${{ github.sha }} on ${{ matrix.os }}"
-          draft: false  
-          prerelease: false
+          token: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          generateReleaseNotes: true
+          allowUpdates: true
+          artifacts: "release-assets/**"
+          artifactErrorsFailBuild: true
