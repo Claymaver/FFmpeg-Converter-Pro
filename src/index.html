@@ -1659,6 +1659,12 @@
             </svg>
             Start Conversion
           </button>
+          <button onclick="stopConversion()" id="stop-btn-toolbar" class="btn btn-danger" style="display: none;">
+            <svg class="icon" viewBox="0 0 24 24">
+              <rect x="7" y="7" width="10" height="10"></rect>
+            </svg>
+            Stop
+          </button>
           <button onclick="clearFiles()" class="btn btn-secondary">
             <svg class="icon" viewBox="0 0 24 24">
               <polyline points="3 6 5 6 21 6"></polyline>
@@ -2151,6 +2157,7 @@
     let currentView = 'explorer';
     let activeTab = 'welcome';
     let isConverting = false;
+    let stopRequested = false;
     let customPresets = {};
 
     const BUILTIN_PRESETS = {
@@ -3330,6 +3337,7 @@
     function updateConvertButton() {
       const btn = document.getElementById('convert-btn');
       const btnToolbar = document.getElementById('convert-btn-toolbar');
+      const stopBtnToolbar = document.getElementById('stop-btn-toolbar');
       
       const buttons = [btn, btnToolbar].filter(b => b);
       if (buttons.length === 0) return;
@@ -3358,7 +3366,40 @@
           `;
         }
       });
+
+      if (stopBtnToolbar) {
+        stopBtnToolbar.style.display = isConverting ? 'inline-flex' : 'none';
+        stopBtnToolbar.disabled = !isConverting || stopRequested;
+        if (isConverting && stopRequested) {
+          stopBtnToolbar.innerHTML = `
+            <svg class="icon" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="10"></circle>
+              <path d="M12 6v6l4 2"></path>
+            </svg>
+            Stopping...
+          `;
+        } else {
+          stopBtnToolbar.innerHTML = `
+            <svg class="icon" viewBox="0 0 24 24">
+              <rect x="7" y="7" width="10" height="10"></rect>
+            </svg>
+            Stop
+          `;
+        }
+      }
     }
+
+    window.stopConversion = async function stopConversion() {
+      if (!isConverting || stopRequested) return;
+      stopRequested = true;
+      updateConvertButton();
+      logMessage('Stopping conversion...', 'warning');
+      try {
+        await window.electronAPI.stopConversion();
+      } catch (error) {
+        console.error('Failed to request stop:', error);
+      }
+    };
 
     window.startConversion = async function startConversion() {
       if (isConverting || selectedFiles.length === 0) return;
@@ -3379,6 +3420,7 @@
         }
       }
 
+      stopRequested = false;
       isConverting = true;
       updateConvertButton();
       
@@ -3456,6 +3498,10 @@
 
       // Convert each file
       for (let i = 0; i < selectedFiles.length; i++) {
+        if (stopRequested) {
+          break;
+        }
+
         const file = selectedFiles[i];
         const filename = file.split(/[/\\]/).pop();
 
@@ -3480,7 +3526,15 @@
           const result = await window.electronAPI.convertFile(file, settings, i);
           const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
 
-          if (result.success) {
+          if (result.cancelled) {
+            if (statusEl) {
+              statusEl.className = 'file-status-label skipped';
+              statusEl.textContent = 'Stopped';
+            }
+            logMessage(`  Stopped: ${filename}`, 'warning');
+            stopRequested = true;
+            break;
+          } else if (result.success) {
             successCount++;
 
             if (result.skipped) {
@@ -3526,6 +3580,15 @@
             addProblem(filename, 'error', result.error, solution, result.details);
           }
         } catch (error) {
+          if (stopRequested) {
+            if (statusEl) {
+              statusEl.className = 'file-status-label skipped';
+              statusEl.textContent = 'Stopped';
+            }
+            logMessage(`  Stopped: ${filename}`, 'warning');
+            break;
+          }
+
           failCount++;
           logMessage(`  Unexpected error: ${error.message}`, 'error');
 
@@ -3545,12 +3608,21 @@
       const summary = [];
       if (successCount > 0) summary.push(`${successCount} succeeded`);
       if (failCount > 0) summary.push(`${failCount} failed`);
+      if (stopRequested) summary.push('stopped by user');
 
-      logMessage(`Batch complete: ${summary.join(', ')}`, successCount > 0 && failCount === 0 ? 'success' : 'warning');
+      if (stopRequested) {
+        logMessage(`Batch stopped: ${summary.join(', ')}`, 'warning');
+      } else {
+        logMessage(`Batch complete: ${summary.join(', ')}`, successCount > 0 && failCount === 0 ? 'success' : 'warning');
+      }
 
       // Update status bar
       const batchStatusText = document.getElementById('batch-status-text');
-      if (batchStatusText) batchStatusText.textContent = `Done: ${summary.join(', ')}`;
+      if (batchStatusText) {
+        batchStatusText.textContent = stopRequested
+          ? `Stopped: ${summary.join(', ')}`
+          : `Done: ${summary.join(', ')}`;
+      }
 
       // Fade out progress bar after a moment
       setTimeout(() => {
@@ -3558,6 +3630,7 @@
       }, 3000);
 
       isConverting = false;
+      stopRequested = false;
       updateConvertButton();
     }
   </script>

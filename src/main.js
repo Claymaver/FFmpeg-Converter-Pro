@@ -8,6 +8,7 @@ let ffmpegPath = null;
 let ffprobePath = null;
 let userDataPath;
 let activeFFmpegProcess = null;
+let cancelRequested = false;
 
 // ============================================================
 // FFmpeg Discovery
@@ -377,16 +378,15 @@ function buildFFmpegArgs(inputPath, outputPath, settings, options = {}) {
 
   // === SUBTITLES (skip on pass 1) ===
   if (!isPass1) {
-    if (settings.subtitleMode === 'copy') {
-      // MP4 cannot mux common text subtitle codecs like subrip via stream copy.
-      // Re-encode subtitles to mov_text for MP4 outputs to avoid header write failures.
-      if (isMp4Output) {
-        args.push('-c:s', 'mov_text');
-      } else {
-        args.push('-c:s', 'copy');
-      }
-    } else if (settings.subtitleMode === 'none') {
+    const subtitleMode = settings.subtitleMode || 'copy';
+    if (subtitleMode === 'none') {
       args.push('-sn');
+    } else if (isMp4Output) {
+      // MP4 cannot mux common text subtitle codecs (e.g. subrip) with stream copy.
+      // Force mov_text for MP4 outputs unless subtitles are explicitly disabled.
+      args.push('-c:s', 'mov_text');
+    } else if (subtitleMode === 'copy') {
+      args.push('-c:s', 'copy');
     }
   }
 
@@ -563,6 +563,12 @@ function runFFmpegPass(args, duration, fileIndex, passLabel) {
 
     proc.on('close', (code) => {
       activeFFmpegProcess = null;
+      if (cancelRequested) {
+        const cancelError = new Error('Conversion cancelled by user');
+        cancelError.cancelled = true;
+        reject(cancelError);
+        return;
+      }
       if (code === 0) {
         resolve();
       } else {
@@ -614,6 +620,12 @@ function runFFmpegPass(args, duration, fileIndex, passLabel) {
 
     proc.on('error', (err) => {
       activeFFmpegProcess = null;
+      if (cancelRequested) {
+        const cancelError = new Error('Conversion cancelled by user');
+        cancelError.cancelled = true;
+        reject(cancelError);
+        return;
+      }
       reject(new Error(`Failed to start FFmpeg: ${err.message}`));
     });
   });
@@ -628,6 +640,12 @@ function cleanupPasslogFiles(prefix) {
 }
 
 async function convertFile(inputPath, settings, fileIndex) {
+  if (cancelRequested) {
+    const cancelError = new Error('Conversion cancelled by user');
+    cancelError.cancelled = true;
+    throw cancelError;
+  }
+
   // Validate input
   const validation = isValidFilePath(inputPath);
   if (!validation.valid) {
@@ -703,6 +721,12 @@ async function convertFile(inputPath, settings, fileIndex) {
       sendLog(`Pass 1/2: Analyzing ${path.basename(inputPath)}`);
       const pass1Args = buildFFmpegArgs(inputPath, outputPath, settings, { pass: 1, passlogfile });
       await runFFmpegPass(pass1Args, duration, fileIndex, 'Pass 1/2');
+
+      if (cancelRequested) {
+        const cancelError = new Error('Conversion cancelled by user');
+        cancelError.cancelled = true;
+        throw cancelError;
+      }
 
       // Pass 2: actual encode
       sendLog(`Pass 2/2: Encoding ${path.basename(inputPath)}`);
@@ -792,6 +816,7 @@ function createWindow() {
   mainWindow.on('closed', () => {
     // Kill any active ffmpeg process to prevent zombies
     if (activeFFmpegProcess) {
+      cancelRequested = true;
       try { activeFFmpegProcess.kill('SIGKILL'); } catch (e) {}
       activeFFmpegProcess = null;
     }
@@ -1003,12 +1028,33 @@ ipcMain.handle('select-output-folder', async () => {
 // --- Conversion ---
 
 ipcMain.handle('convert-file', async (event, inputPath, settings, fileIndex) => {
+  // Renderer starts each batch at file index 0; clear cancellation state there.
+  if (fileIndex === 0) {
+    cancelRequested = false;
+  }
   try {
     const result = await convertFile(inputPath, settings, fileIndex);
     return result;
   } catch (error) {
-    return { success: false, error: error.message, details: error.ffmpegOutput || null };
+    return {
+      success: false,
+      cancelled: !!error.cancelled,
+      error: error.message,
+      details: error.cancelled ? null : (error.ffmpegOutput || null)
+    };
   }
+});
+
+ipcMain.handle('stop-conversion', async () => {
+  cancelRequested = true;
+  if (activeFFmpegProcess) {
+    try { activeFFmpegProcess.kill('SIGINT'); } catch (e) {}
+    try { activeFFmpegProcess.kill('SIGKILL'); } catch (e) {}
+    activeFFmpegProcess = null;
+    sendLog('Stop requested by user');
+    return { success: true, stopped: true };
+  }
+  return { success: true, stopped: false };
 });
 
 // --- FFmpeg Status ---

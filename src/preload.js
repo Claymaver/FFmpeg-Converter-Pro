@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Conversion
   convertFile: (inputPath, settings, fileIndex) => ipcRenderer.invoke('convert-file', inputPath, settings, fileIndex),
+  stopConversion: () => ipcRenderer.invoke('stop-conversion'),
   onConversionProgress: (callback) => ipcRenderer.on('conversion-progress', (event, data) => callback(data)),
   onConversionLog: (callback) => ipcRenderer.on('conversion-log', (event, message) => callback(message)),
 

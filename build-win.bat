@@ -38,11 +38,17 @@ if not exist "build\icon.ico" (
 )
 
 echo.
-echo [3/4] Building application...
+echo [3/4] Building Windows application...
 echo This may take several minutes...
 echo.
+echo Running: npx electron-builder --win --publish never
+call npx electron-builder --win --publish never
 
-call npm run build:win-all
+if %ERRORLEVEL% NEQ 0 (
+    echo.
+    echo npx build failed, trying npm exec fallback...
+    call npm exec -- electron-builder --win --publish never
+)
 
 if %ERRORLEVEL% NEQ 0 (
     echo.
