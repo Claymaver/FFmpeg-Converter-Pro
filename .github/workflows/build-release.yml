@@ -55,8 +55,6 @@ jobs:
             dist/*.deb
             dist/*.rpm
             dist/*.zip
-            dist/*.yml
-            dist/*.blockmap
           if-no-files-found: warn
 
   release:
@@ -82,6 +80,4 @@ jobs:
             release-assets/*.deb
             release-assets/*.rpm
             release-assets/*.zip
-            release-assets/*.yml
-            release-assets/*.blockmap
           generate_release_notes: true
