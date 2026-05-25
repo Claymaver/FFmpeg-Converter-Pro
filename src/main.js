@@ -670,20 +670,6 @@ function buildFFmpegArgs(inputPath, outputPath, settings, options = {}) {
     }
   }
 
-  // === SUBTITLES (skip on pass 1) ===
-  if (!isPass1) {
-    const subtitleMode = settings.subtitleMode || 'copy';
-    if (subtitleMode === 'none') {
-      args.push('-sn');
-    } else if (isMp4Output) {
-      // MP4 cannot mux common text subtitle codecs (e.g. subrip) with stream copy.
-      // Force mov_text for MP4 outputs unless subtitles are explicitly disabled.
-      args.push('-c:s', 'mov_text');
-    } else if (subtitleMode === 'copy') {
-      args.push('-c:s', 'copy');
-    }
-  }
-
   // === METADATA ===
   if (settings.metadataMode === 'strip') {
     args.push('-map_metadata', '-1');
@@ -700,6 +686,21 @@ function buildFFmpegArgs(inputPath, outputPath, settings, options = {}) {
   }
   if (settings.globalCustomArgs && settings.globalCustomArgs.trim() !== '') {
     args.push(...settings.globalCustomArgs.trim().split(/\s+/));
+  }
+
+  // === SUBTITLES (skip on pass 1) ===
+  // Enforce this AFTER custom args so incompatible user args (e.g. `-c copy`)
+  // cannot accidentally override container-safe subtitle handling.
+  if (!isPass1) {
+    const subtitleMode = settings.subtitleMode || 'copy';
+    if (subtitleMode === 'none') {
+      args.push('-sn');
+    } else if (isMp4Output) {
+      // MP4 cannot mux subrip/ass copies directly; force mov_text.
+      args.push('-c:s', 'mov_text');
+    } else if (subtitleMode === 'copy') {
+      args.push('-c:s', 'copy');
+    }
   }
 
   // === 2-PASS FLAGS ===
@@ -1145,6 +1146,8 @@ function runFFmpegPass(args, duration, fileIndex, passLabel) {
           errorMessage = 'No disk space left — free up space or use a different output drive';
         } else if (errorOutput.includes('Unknown encoder') || (errorOutput.includes('Encoder') && errorOutput.includes('not found'))) {
           errorMessage = 'Codec not available — try a different codec or update FFmpeg';
+        } else if (errorOutput.includes('Could not find tag for codec subrip') && errorOutput.includes('mp4')) {
+          errorMessage = 'MP4 cannot store copied SubRip subtitles — use Subtitle Mode "Copy" (auto-converts to mov_text) or "Remove All"';
         } else {
           // Try to find the most relevant error line from FFmpeg output
           const errorLines = errorOutput.split('\n').filter(line => {
