@@ -1586,11 +1586,6 @@
           <path d="M12 1v6m0 6v6M5.6 5.6l4.2 4.2m5.6 5.6l4.2 4.2M1 12h6m6 0h6M5.6 18.4l4.2-4.2m5.6-5.6l4.2-4.2"></path>
         </svg>
       </button>
-      <button class="activity-item" onclick="switchView('presets', this)" title="Presets">
-        <svg class="activity-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-        </svg>
-      </button>
       <button class="activity-item" onclick="switchView('help', this)" title="Help" style="margin-top: auto;">
         <svg class="activity-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
           <circle cx="12" cy="12" r="10"></circle>
@@ -1658,6 +1653,19 @@
               <polygon points="10 8 16 12 10 16 10 8"></polygon>
             </svg>
             Start Conversion
+          </button>
+          <button onclick="estimateBatch()" id="estimate-btn-toolbar" class="btn btn-secondary" disabled>
+            <svg class="icon" viewBox="0 0 24 24">
+              <line x1="12" y1="2" x2="12" y2="6"></line>
+              <line x1="12" y1="18" x2="12" y2="22"></line>
+              <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line>
+              <line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line>
+              <line x1="2" y1="12" x2="6" y2="12"></line>
+              <line x1="18" y1="12" x2="22" y2="12"></line>
+              <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line>
+              <line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line>
+            </svg>
+            Estimate Batch
           </button>
           <button onclick="stopConversion()" id="stop-btn-toolbar" class="btn btn-danger" style="display: none;">
             <svg class="icon" viewBox="0 0 24 24">
@@ -1736,6 +1744,36 @@
 
         <!-- Settings Content (Hidden by default) -->
         <div id="settings-content" style="display: none;">
+          <!-- Presets -->
+          <div class="settings-section">
+            <div class="settings-section-title">Presets</div>
+            <div class="settings-grid">
+              <div class="setting-item" style="grid-column: span 2;">
+                <label class="setting-label">Available Presets</label>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                  <select id="preset-select" style="flex: 1;">
+                    <option value="">Select a preset...</option>
+                  </select>
+                  <button class="btn btn-secondary" onclick="applySelectedPreset()">Apply</button>
+                </div>
+                <span class="setting-help">Built-in and custom presets are managed here.</span>
+              </div>
+
+              <div class="setting-item">
+                <label class="setting-label">Preset Name</label>
+                <input type="text" id="preset-name" placeholder="My preset">
+              </div>
+
+              <div class="setting-item" style="justify-content: end;">
+                <label class="setting-label">&nbsp;</label>
+                <div style="display: flex; gap: 8px;">
+                  <button class="btn btn-secondary" onclick="saveCurrentPreset()">Save / Update</button>
+                  <button class="btn btn-danger" onclick="deleteSelectedPreset()">Delete</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- Video Settings -->
           <div class="settings-section">
             <div class="settings-section-title">Video Settings</div>
@@ -1973,6 +2011,7 @@
                   <option value="auto">Auto</option>
                   <option value="nvenc">NVIDIA</option>
                   <option value="qsv">Intel</option>
+                  <option value="amf">AMD</option>
                 </select>
               </div>
               
@@ -2036,7 +2075,7 @@
   <!-- Status Bar -->
   <div class="status-bar">
     <div class="status-left">
-      <div class="status-item">
+      <div class="status-item" onclick="installFFmpeg()" title="Install or repair FFmpeg">
         <span class="status-indicator online"></span>
         <span id="ffmpeg-status">FFmpeg Ready</span>
       </div>
@@ -2159,6 +2198,8 @@
     let isConverting = false;
     let stopRequested = false;
     let customPresets = {};
+    let isEstimating = false;
+    let estimateCache = {};
 
     const BUILTIN_PRESETS = {
       'high-quality': { 'video-format': 'mkv', 'video-codec': 'libx264', 'video-crf': '18', 'video-preset': 'slow', 'audio-codec': 'aac', 'audio-bitrate': '256', 'video-resolution': '' },
@@ -2168,24 +2209,23 @@
       'audio-high':   { 'audio-codec': 'aac', 'audio-bitrate': '320', 'audio-samplerate': '48000' },
       'audio-medium': { 'audio-codec': 'aac', 'audio-bitrate': '192', 'audio-samplerate': '44100' }
     };
+    const BUILTIN_PRESET_LABELS = {
+      'high-quality': 'High Quality',
+      'web': 'Web Optimized',
+      '4k': '4K Quality',
+      'nvenc-fast': 'NVENC Fast',
+      'audio-high': 'Audio High Quality',
+      'audio-medium': 'Audio Medium Quality'
+    };
 
     const PRESET_SETTING_IDS = [
       'video-format', 'video-codec', 'video-crf', 'size-target-mode', 'size-target-mb',
       'video-resolution', 'video-fps', 'video-preset', 'video-pixfmt', 'video-gop',
       'custom-video-args', 'audio-codec', 'audio-bitrate', 'audio-samplerate',
       'audio-channels', 'subtitle-mode', 'use-source-folder', 'output-folder',
-      'naming-pattern', 'custom-pattern', 'hw-accel',
+      'replace-original', 'naming-pattern', 'custom-pattern', 'hw-accel',
       'overwrite-existing'
     ];
-
-    function escapeHtmlText(value) {
-      return String(value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-    }
 
     function captureCurrentSettingsAsPreset() {
       const data = {};
@@ -2194,7 +2234,28 @@
         if (!el) return;
         data[id] = el.type === 'checkbox' ? !!el.checked : (el.value ?? '');
       });
-      return data;
+      return normalizePresetData(data);
+    }
+
+    function normalizePresetData(preset) {
+      const normalized = {};
+      if (!preset || typeof preset !== 'object' || Array.isArray(preset)) {
+        return normalized;
+      }
+
+      PRESET_SETTING_IDS.forEach((id) => {
+        if (!Object.prototype.hasOwnProperty.call(preset, id)) return;
+        const raw = preset[id];
+        if (typeof raw === 'boolean') {
+          normalized[id] = raw;
+          return;
+        }
+        if (typeof raw === 'string' || typeof raw === 'number') {
+          normalized[id] = String(raw);
+        }
+      });
+
+      return normalized;
     }
 
     function applyPresetData(preset) {
@@ -2202,7 +2263,12 @@
         const el = document.getElementById(id);
         if (!el) return;
         if (el.type === 'checkbox') {
-          el.checked = !!value;
+          if (typeof value === 'string') {
+            const normalized = value.trim().toLowerCase();
+            el.checked = normalized === 'true' || normalized === '1' || normalized === 'yes';
+          } else {
+            el.checked = !!value;
+          }
         } else {
           el.value = value;
         }
@@ -2215,7 +2281,9 @@
         const loaded = await window.electronAPI.loadPresets();
         if (loaded && typeof loaded === 'object' && !Array.isArray(loaded)) {
           customPresets = Object.fromEntries(
-            Object.entries(loaded).filter(([, value]) => value && typeof value === 'object' && !Array.isArray(value))
+            Object.entries(loaded)
+              .map(([name, value]) => [String(name).trim(), normalizePresetData(value)])
+              .filter(([name, value]) => name.length > 0 && Object.keys(value).length > 0)
           );
         } else {
           customPresets = {};
@@ -2234,6 +2302,98 @@
       if (result && result.success === false) {
         throw new Error(result.error || 'Failed to save presets');
       }
+    }
+
+    function refreshPresetSelect() {
+      const select = document.getElementById('preset-select');
+      const deleteButton = document.querySelector('button[onclick="deleteSelectedPreset()"]');
+      if (!select) return;
+
+      const previous = select.value;
+      select.innerHTML = '';
+
+      const placeholder = document.createElement('option');
+      placeholder.value = '';
+      placeholder.textContent = 'Select a preset...';
+      select.appendChild(placeholder);
+
+      const builtinGroup = document.createElement('optgroup');
+      builtinGroup.label = 'Built-in';
+      Object.keys(BUILTIN_PRESETS).forEach((name) => {
+        const option = document.createElement('option');
+        option.value = `builtin:${name}`;
+        option.textContent = BUILTIN_PRESET_LABELS[name] || name;
+        builtinGroup.appendChild(option);
+      });
+      select.appendChild(builtinGroup);
+
+      const customNames = Object.keys(customPresets).sort((a, b) => a.localeCompare(b));
+      if (customNames.length > 0) {
+        const customGroup = document.createElement('optgroup');
+        customGroup.label = 'Custom';
+        customNames.forEach((name) => {
+          const option = document.createElement('option');
+          option.value = `custom:${name}`;
+          option.textContent = name;
+          customGroup.appendChild(option);
+        });
+        select.appendChild(customGroup);
+      }
+
+      const hasPrevious = Array.from(select.options).some((option) => option.value === previous);
+      if (previous && hasPrevious) {
+        select.value = previous;
+      } else {
+        select.value = '';
+      }
+
+      const isCustom = select.value.startsWith('custom:');
+      if (deleteButton) {
+        deleteButton.disabled = !isCustom;
+      }
+    }
+
+    function getSelectedPresetName() {
+      const select = document.getElementById('preset-select');
+      if (!select || !select.value) return null;
+      const [type, ...rest] = select.value.split(':');
+      const name = rest.join(':');
+      if (!type || !name) return null;
+      return { type, name };
+    }
+
+    async function loadSavedSettings() {
+      if (!window.electronAPI?.loadSettings) return;
+      try {
+        const saved = await window.electronAPI.loadSettings();
+        const normalized = normalizePresetData(saved);
+        if (Object.keys(normalized).length === 0) return;
+
+        applyPresetData(normalized);
+        syncReplaceOriginalUi();
+        document.getElementById('size-target-mode')?.dispatchEvent(new Event('change'));
+        document.getElementById('video-codec')?.dispatchEvent(new Event('change'));
+        document.getElementById('naming-pattern')?.dispatchEvent(new Event('change'));
+        toggleOutputFolderMode();
+        updateSubtitleModeHelp();
+      } catch (error) {
+        console.error('Failed to load saved settings:', error);
+      }
+    }
+
+    let persistSettingsTimer = null;
+    function scheduleSettingsSave() {
+      if (persistSettingsTimer) {
+        clearTimeout(persistSettingsTimer);
+      }
+      persistSettingsTimer = setTimeout(async () => {
+        if (!window.electronAPI?.saveSettings) return;
+        try {
+          await window.electronAPI.saveSettings(captureCurrentSettingsAsPreset());
+        } catch (error) {
+          console.error('Failed to save settings:', error);
+        }
+      }, 250);
     }
 
     function updateSubtitleModeHelp() {
@@ -2267,12 +2427,30 @@
       }
       
       await loadCustomPresets();
+      refreshPresetSelect();
+      await loadSavedSettings();
       await checkFFmpegStatus();
       updateFileCount();
+      updateSettingsSummary();
+      syncReplaceOriginalUi();
       
       // Initialize sidebar resize
       initSidebarResize();
-      
+
+      document.getElementById('preset-select')?.addEventListener('change', (event) => {
+        const selectValue = event.target?.value || '';
+        const presetNameInput = document.getElementById('preset-name');
+        const deleteButton = document.querySelector('button[onclick="deleteSelectedPreset()"]');
+        const isCustom = selectValue.startsWith('custom:');
+
+        if (presetNameInput) {
+          presetNameInput.value = isCustom ? selectValue.slice('custom:'.length) : '';
+        }
+        if (deleteButton) {
+          deleteButton.disabled = !isCustom;
+        }
+      });
+
       // Initialize settings listeners
       document.getElementById('naming-pattern')?.addEventListener('change', (e) => {
         const customSetting = document.getElementById('custom-pattern-setting');
@@ -2337,6 +2515,20 @@
         updateSubtitleModeHelp();
       });
 
+      PRESET_SETTING_IDS.forEach((id) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const save = () => {
+          scheduleSettingsSave();
+          estimateCache = {};
+          if (selectedFiles.length > 0) updateFileList();
+        };
+        el.addEventListener('change', save);
+        if (el.tagName === 'INPUT' && (el.type === 'text' || el.type === 'number')) {
+          el.addEventListener('input', save);
+        }
+      });
+
       // Initialize drag-and-drop
       initDragAndDrop();
       updateSubtitleModeHelp();
@@ -2373,12 +2565,15 @@
         }
 
         if (newFiles.length > 0) {
-          selectedFiles = [...selectedFiles, ...newFiles];
-          Object.assign(fileMetadata, newMetadata);
+          const addedCount = appendFiles(newFiles, newMetadata);
+          if (addedCount === 0) {
+            logMessage('Dropped files were already in the list', 'info');
+            return;
+          }
           updateFileList();
           updateFileCount();
           updateConvertButton();
-          logMessage(`Added ${newFiles.length} file${newFiles.length === 1 ? '' : 's'} via drag & drop`, 'success');
+          logMessage(`Added ${addedCount} file${addedCount === 1 ? '' : 's'} via drag & drop`, 'success');
         } else if (fileList.length > 0) {
           logMessage('No supported media files found in dropped items', 'warning');
         }
@@ -2493,52 +2688,50 @@
       const useSourceFolder = document.getElementById('use-source-folder').checked;
       const outputFolderSetting = document.getElementById('output-folder-setting');
       const namingPatternSetting = document.getElementById('naming-pattern-setting');
-      const replaceOriginalCheckbox = document.getElementById('replace-original');
+      const customPatternSetting = document.getElementById('custom-pattern-setting');
+      const namingPattern = document.getElementById('naming-pattern')?.value;
+      const replaceOriginal = document.getElementById('replace-original')?.checked;
       
       if (outputFolderSetting) {
         outputFolderSetting.style.display = useSourceFolder ? 'none' : 'block';
       }
       
-      // If using source folder and replace original is checked, adjust naming
-      if (useSourceFolder && replaceOriginalCheckbox?.checked) {
-        if (namingPatternSetting) namingPatternSetting.style.display = 'none';
-      } else {
-        if (namingPatternSetting) namingPatternSetting.style.display = 'block';
+      if (namingPatternSetting) {
+        namingPatternSetting.style.display = replaceOriginal ? 'none' : 'block';
+      }
+
+      if (customPatternSetting) {
+        const shouldShowCustom = !replaceOriginal && namingPattern === 'custom';
+        customPatternSetting.style.display = shouldShowCustom ? 'block' : 'none';
       }
     };
 
-    // Toggle replace original
-    window.toggleReplaceOriginal = function toggleReplaceOriginal() {
-      const replaceOriginal = document.getElementById('replace-original').checked;
-      const namingPatternSetting = document.getElementById('naming-pattern-setting');
-      const customPatternSetting = document.getElementById('custom-pattern-setting');
+    function syncReplaceOriginalUi() {
+      const replaceOriginal = document.getElementById('replace-original')?.checked;
       const useSourceFolder = document.getElementById('use-source-folder');
-      
-      if (replaceOriginal) {
-        // Warn user
-        if (!confirm('⚠️ WARNING: Replacing original files cannot be undone!\n\nThe original files will be permanently overwritten.\n\nAre you sure you want to continue?')) {
-          document.getElementById('replace-original').checked = false;
-          return;
-        }
-        
-        // Hide naming pattern (not needed when replacing)
-        if (namingPatternSetting) namingPatternSetting.style.display = 'none';
-        if (customPatternSetting) customPatternSetting.style.display = 'none';
-        
-        // Force use source folder
-        if (useSourceFolder) {
-          useSourceFolder.checked = true;
-          useSourceFolder.disabled = true;
-        }
-      } else {
-        // Show naming pattern again
-        if (namingPatternSetting) namingPatternSetting.style.display = 'block';
-        
-        // Re-enable source folder option
-        if (useSourceFolder) {
-          useSourceFolder.disabled = false;
+      if (replaceOriginal && useSourceFolder) {
+        useSourceFolder.checked = true;
+        useSourceFolder.disabled = true;
+      } else if (useSourceFolder) {
+        useSourceFolder.disabled = false;
+      }
+      toggleOutputFolderMode();
+    }
+
+    // Toggle replace original
+    window.toggleReplaceOriginal = function toggleReplaceOriginal(options = {}) {
+      const replaceOriginalEl = document.getElementById('replace-original');
+      if (!replaceOriginalEl) return;
+
+      if (replaceOriginalEl.checked && !options.skipConfirm) {
+        const ok = confirm('⚠️ WARNING: Replacing original files cannot be undone!\n\nThe original files will be permanently overwritten.\n\nAre you sure you want to continue?');
+        if (!ok) {
+          replaceOriginalEl.checked = false;
         }
       }
+
+      syncReplaceOriginalUi();
+      scheduleSettingsSave();
     };
 
     // Format file size
@@ -2548,6 +2741,48 @@
       const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
       const i = Math.floor(Math.log(bytes) / Math.log(k));
       return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    function formatDuration(totalSeconds) {
+      const seconds = Math.max(0, Math.round(totalSeconds || 0));
+      const h = Math.floor(seconds / 3600);
+      const m = Math.floor((seconds % 3600) / 60);
+      const s = seconds % 60;
+      if (h > 0) return `${h}h ${m}m ${s}s`;
+      if (m > 0) return `${m}m ${s}s`;
+      return `${s}s`;
+    }
+
+    function collectConversionSettings() {
+      const sizeTargetMode = document.getElementById('size-target-mode')?.value || '';
+      let targetSizeMB = 0;
+      if (sizeTargetMode === 'episode') targetSizeMB = 350;
+      else if (sizeTargetMode === 'movie') targetSizeMB = 2816;
+      else if (sizeTargetMode === 'custom') targetSizeMB = parseInt(document.getElementById('size-target-mb')?.value) || 0;
+
+      return {
+        videoFormat: document.getElementById('video-format')?.value || 'mp4',
+        videoCodec: document.getElementById('video-codec')?.value || 'libx264',
+        videoCrf: document.getElementById('video-crf')?.value || '23',
+        videoResolution: document.getElementById('video-resolution')?.value || '',
+        videoFps: document.getElementById('video-fps')?.value || '',
+        videoPreset: document.getElementById('video-preset')?.value || 'medium',
+        audioCodec: document.getElementById('audio-codec')?.value || 'aac',
+        audioBitrate: document.getElementById('audio-bitrate')?.value || '192',
+        audioSamplerate: document.getElementById('audio-samplerate')?.value || '',
+        audioChannels: document.getElementById('audio-channels')?.value || '',
+        subtitleMode: document.getElementById('subtitle-mode')?.value || 'copy',
+
+        targetSizeMB,
+        useSourceFolder: document.getElementById('use-source-folder')?.checked ?? false,
+        outputFolder: document.getElementById('output-folder')?.value || '',
+        replaceOriginal: document.getElementById('replace-original')?.checked ?? false,
+        overwriteExisting: document.getElementById('overwrite-existing')?.checked ?? false,
+        namingPattern: document.getElementById('naming-pattern')?.value || 'original',
+        customNamingPattern: document.getElementById('custom-pattern')?.value || '',
+        hwAccel: document.getElementById('hw-accel')?.value || '',
+        overwriteMode: document.getElementById('overwrite-existing')?.checked ? 'yes' : 'no'
+      };
     }
 
     // View switching (make global)
@@ -2573,9 +2808,6 @@
         sidebarTitle.textContent = 'SETTINGS';
         sidebarContent.innerHTML = '<div style="padding: 12px; font-size: 12px; color: var(--text-secondary);">Settings are in the editor panel →</div>';
         showSettings();
-      } else if (view === 'presets') {
-        sidebarTitle.textContent = 'PRESETS';
-        loadPresetsSidebar();
       } else if (view === 'help') {
         sidebarTitle.textContent = 'HELP';
         loadHelpSidebar();
@@ -2599,6 +2831,28 @@
       `;
     }
 
+    function appendFiles(files, metadata = {}) {
+      const known = new Set(selectedFiles);
+      let added = 0;
+
+      files.forEach((filePath) => {
+        if (!filePath || known.has(filePath)) return;
+        known.add(filePath);
+        selectedFiles.push(filePath);
+        added += 1;
+      });
+
+      if (metadata && typeof metadata === 'object') {
+        Object.entries(metadata).forEach(([filePath, info]) => {
+          if (known.has(filePath)) {
+            fileMetadata[filePath] = info;
+          }
+        });
+      }
+
+      return added;
+    }
+
     // File operations (make explicitly global)
     window.selectFiles = async function selectFiles() {
       console.log('selectFiles() called');
@@ -2618,10 +2872,11 @@
         const metadata = result.metadata || {};
         
         if (files && files.length > 0) {
-          selectedFiles = [...selectedFiles, ...files];
-          
-          // Store file metadata (sizes)
-          Object.assign(fileMetadata, metadata);
+          const addedCount = appendFiles(files, metadata);
+          if (addedCount === 0) {
+            logMessage('Selected files were already in the list', 'info');
+            return;
+          }
           
           updateFileList();
           updateFileCount();
@@ -2657,10 +2912,11 @@
         const metadata = result.metadata || {};
         
         if (files && files.length > 0) {
-          selectedFiles = [...selectedFiles, ...files];
-          
-          // Store file metadata (sizes)
-          Object.assign(fileMetadata, metadata);
+          const addedCount = appendFiles(files, metadata);
+          if (addedCount === 0) {
+            logMessage('All scanned files were already in the list', 'info');
+            return;
+          }
           
           updateFileList();
           updateFileCount();
@@ -2705,13 +2961,19 @@
 
     window.clearFiles = function clearFiles() {
       selectedFiles = [];
+      fileMetadata = {};
+      estimateCache = {};
       updateFileList();
       updateFileCount();
       updateConvertButton();
     };
 
     window.removeFile = function removeFile(index) {
-      selectedFiles.splice(index, 1);
+      const removed = selectedFiles.splice(index, 1)[0];
+      if (removed) {
+        delete fileMetadata[removed];
+        delete estimateCache[removed];
+      }
       updateFileList();
       updateFileCount();
       updateConvertButton();
@@ -2759,6 +3021,10 @@
         const ext = filename.split('.').pop().toUpperCase();
         const metadata = fileMetadata[file];
         const sizeText = metadata?.size ? formatFileSize(metadata.size) : '';
+        const estimate = estimateCache[file];
+        const estimateText = estimate?.success
+          ? `~${formatFileSize(estimate.estimatedOutputSize)} • ~${formatDuration(estimate.estimatedTimeSec)}`
+          : '';
 
         return `
           <div class="file-tree-item" onclick="selectFileItem(${index})">
@@ -2768,6 +3034,7 @@
             <div class="file-name">
               <div class="file-name-text" title="${file}">${filename}</div>
               <div class="file-size">${sizeText}</div>
+              ${estimateText ? `<div class="file-size" style="color: var(--info);">Est: ${estimateText}</div>` : ''}
             </div>
             <span class="file-status-label pending" id="status-${index}"></span>
             <button class="file-remove-btn" onclick="event.stopPropagation(); removeFile(${index})" title="Remove">
@@ -3041,54 +3308,9 @@
       header.nextElementSibling.classList.toggle('open');
     }
 
-    // Presets sidebar
-    function loadPresetsSidebar() {
-      const customPresetNames = Object.keys(customPresets).sort((a, b) => a.localeCompare(b));
-      const customPresetsHtml = customPresetNames.length > 0
-        ? customPresetNames.map((name) => {
-            const encodedName = encodeURIComponent(name);
-            return `
-              <div style="display: flex; align-items: center; gap: 6px; margin-top: 4px;">
-                <div class="preset-badge" style="flex: 1; margin-top: 0;" onclick="applyCustomPreset('${encodedName}')">${escapeHtmlText(name)}</div>
-                <button class="sidebar-btn" title="Delete preset" onclick="deleteCustomPreset('${encodedName}')">×</button>
-              </div>
-            `;
-          }).join('')
-        : '<div style="font-size: 11px; color: var(--text-muted);">No custom presets yet</div>';
-
-      const container = document.getElementById('sidebar-content');
-      container.innerHTML = `
-        <div style="padding: 8px;">
-          <div style="margin-bottom: 12px;">
-            <div style="font-size: 11px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px; text-transform: uppercase;">Video Presets</div>
-            <div class="preset-badge" onclick="applyPreset('high-quality')">🎬 High Quality</div>
-            <div class="preset-badge" style="margin-top: 4px;" onclick="applyPreset('web')">🌐 Web Optimized</div>
-            <div class="preset-badge" style="margin-top: 4px;" onclick="applyPreset('4k')">🎥 4K Quality</div>
-            <div class="preset-badge" style="margin-top: 4px;" onclick="applyPreset('nvenc-fast')">⚡ NVENC Fast</div>
-          </div>
-          <div style="margin-bottom: 12px;">
-            <div style="font-size: 11px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px; text-transform: uppercase;">Audio Presets</div>
-            <div class="preset-badge" onclick="applyPreset('audio-high')">🎵 High Quality</div>
-            <div class="preset-badge" style="margin-top: 4px;" onclick="applyPreset('audio-medium')">🎶 Medium Quality</div>
-          </div>
-          <div style="margin-bottom: 12px;">
-            <div style="font-size: 11px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px; text-transform: uppercase;">Custom Presets</div>
-            ${customPresetsHtml}
-          </div>
-          <button class="btn btn-secondary" style="width: 100%; margin-top: 12px;" onclick="saveCurrentPreset()">
-            <svg class="icon" viewBox="0 0 24 24">
-              <line x1="12" y1="5" x2="12" y2="19"></line>
-              <line x1="5" y1="12" x2="19" y2="12"></line>
-            </svg>
-            Save Current as Preset
-          </button>
-        </div>
-      `;
-    }
-
     window.saveCurrentPreset = async function saveCurrentPreset() {
-      const rawName = prompt('Preset name:');
-      if (rawName === null) return;
+      const nameInput = document.getElementById('preset-name');
+      const rawName = nameInput?.value ?? '';
 
       const presetName = rawName.trim();
       if (!presetName) {
@@ -3096,7 +3318,8 @@
         return;
       }
 
-      if (BUILTIN_PRESETS[presetName]) {
+      const reservedNames = Object.keys(BUILTIN_PRESETS).map((name) => name.toLowerCase());
+      if (reservedNames.includes(presetName.toLowerCase())) {
         alert('That name is reserved by a built-in preset. Choose another name.');
         return;
       }
@@ -3110,7 +3333,14 @@
 
       try {
         await saveCustomPresets();
-        if (currentView === 'presets') loadPresetsSidebar();
+        refreshPresetSelect();
+        const presetSelect = document.getElementById('preset-select');
+        if (presetSelect) {
+          presetSelect.value = `custom:${presetName}`;
+        }
+        if (nameInput) {
+          nameInput.value = presetName;
+        }
         logMessage(`Saved preset: ${presetName}`, 'success');
       } catch (error) {
         console.error('Failed to save preset:', error);
@@ -3118,13 +3348,23 @@
       }
     };
 
-    window.applyCustomPreset = function applyCustomPreset(encodedName) {
-      const presetName = decodeURIComponent(encodedName);
-      window.applyPreset(presetName);
+    window.applySelectedPreset = function applySelectedPreset() {
+      const selected = getSelectedPresetName();
+      if (!selected) {
+        alert('Select a preset first.');
+        return;
+      }
+      window.applyPreset(selected.name);
     };
 
-    window.deleteCustomPreset = async function deleteCustomPreset(encodedName) {
-      const presetName = decodeURIComponent(encodedName);
+    window.deleteSelectedPreset = async function deleteSelectedPreset() {
+      const selected = getSelectedPresetName();
+      if (!selected || selected.type !== 'custom') {
+        alert('Select a custom preset to delete.');
+        return;
+      }
+
+      const presetName = selected.name;
       if (!customPresets[presetName]) return;
 
       const shouldDelete = confirm(`Delete preset "${presetName}"?`);
@@ -3133,7 +3373,11 @@
       delete customPresets[presetName];
       try {
         await saveCustomPresets();
-        if (currentView === 'presets') loadPresetsSidebar();
+        refreshPresetSelect();
+        const presetNameInput = document.getElementById('preset-name');
+        if (presetNameInput) {
+          presetNameInput.value = '';
+        }
         logMessage(`Deleted preset: ${presetName}`, 'info');
       } catch (error) {
         console.error('Failed to delete preset:', error);
@@ -3146,6 +3390,7 @@
       if (!preset) return;
 
       applyPresetData(preset);
+      toggleReplaceOriginal({ skipConfirm: true });
 
       // Re-run dependent UI behaviors after applying a preset.
       document.getElementById('size-target-mode')?.dispatchEvent(new Event('change'));
@@ -3156,6 +3401,21 @@
 
       updateSettingsSummary();
       logMessage(`Applied preset: ${presetName}`, 'success');
+      scheduleSettingsSave();
+
+      const presetSelect = document.getElementById('preset-select');
+      if (presetSelect) {
+        if (BUILTIN_PRESETS[presetName]) {
+          presetSelect.value = `builtin:${presetName}`;
+        } else {
+          presetSelect.value = `custom:${presetName}`;
+        }
+      }
+
+      const presetNameInput = document.getElementById('preset-name');
+      if (presetNameInput) {
+        presetNameInput.value = customPresets[presetName] ? presetName : '';
+      }
 
       // Switch to settings view to show the changes
       switchView('settings', document.querySelectorAll('.activity-item')[1]);
@@ -3213,6 +3473,41 @@
         statusText.textContent = 'FFmpeg Not Found';
       }
     }
+
+    window.installFFmpeg = async function installFFmpeg() {
+      if (!window.electronAPI?.installFFmpeg) {
+        alert('Installer API is unavailable.');
+        return;
+      }
+
+      const proceed = confirm('Install FFmpeg now using your system package manager?');
+      if (!proceed) return;
+
+      logMessage('Attempting FFmpeg auto-install...', 'info');
+      try {
+        const result = await window.electronAPI.installFFmpeg();
+
+        if (result?.success) {
+          logMessage(result.message || 'FFmpeg installed successfully.', 'success');
+          await checkFFmpegStatus();
+          alert(`${result.message || 'FFmpeg installed.'}\n\nPath: ${result.ffmpegPath || 'detected via PATH'}`);
+          return;
+        }
+
+        const manualCommands = Array.isArray(result?.manualCommands) ? result.manualCommands.filter(Boolean) : [];
+        const helpText = manualCommands.length > 0
+          ? `\n\nRun one of these in a terminal:\n- ${manualCommands.join('\n- ')}`
+          : '';
+
+        logMessage(result?.message || 'FFmpeg auto-install failed.', 'warning');
+        alert(`${result?.message || 'FFmpeg auto-install failed.'}${helpText}`);
+        await checkFFmpegStatus();
+      } catch (error) {
+        console.error('FFmpeg install failed:', error);
+        logMessage(`FFmpeg install failed: ${error.message}`, 'error');
+        alert(`FFmpeg install failed: ${error.message}`);
+      }
+    };
 
     function showAbout() {
       alert('FFmpeg Converter Pro v2.0.0\n\nCreated by Clay\nGitHub: github.com/yourusername/ffmpeg-converter-pro\n\nBuilt with Electron + FFmpeg\nInspired by VS Code');
@@ -3338,6 +3633,7 @@
       const btn = document.getElementById('convert-btn');
       const btnToolbar = document.getElementById('convert-btn-toolbar');
       const stopBtnToolbar = document.getElementById('stop-btn-toolbar');
+      const estimateBtnToolbar = document.getElementById('estimate-btn-toolbar');
       
       const buttons = [btn, btnToolbar].filter(b => b);
       if (buttons.length === 0) return;
@@ -3387,6 +3683,33 @@
           `;
         }
       }
+
+      if (estimateBtnToolbar) {
+        estimateBtnToolbar.disabled = selectedFiles.length === 0 || isConverting || isEstimating;
+        if (isEstimating) {
+          estimateBtnToolbar.innerHTML = `
+            <svg class="icon" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="10"></circle>
+              <path d="M12 6v6l4 2"></path>
+            </svg>
+            Estimating...
+          `;
+        } else {
+          estimateBtnToolbar.innerHTML = `
+            <svg class="icon" viewBox="0 0 24 24">
+              <line x1="12" y1="2" x2="12" y2="6"></line>
+              <line x1="12" y1="18" x2="12" y2="22"></line>
+              <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line>
+              <line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line>
+              <line x1="2" y1="12" x2="6" y2="12"></line>
+              <line x1="18" y1="12" x2="22" y2="12"></line>
+              <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line>
+              <line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line>
+            </svg>
+            Estimate Batch
+          `;
+        }
+      }
     }
 
     window.stopConversion = async function stopConversion() {
@@ -3401,14 +3724,84 @@
       }
     };
 
+    window.estimateBatch = async function estimateBatch() {
+      if (isConverting || isEstimating || selectedFiles.length === 0) return;
+
+      const ffmpegCheck = await window.electronAPI.checkFFmpeg();
+      if (!ffmpegCheck.available) {
+        logMessage('FFmpeg not available for estimation.', 'error');
+        const installNow = confirm('FFmpeg is not installed.\n\nInstall automatically now?');
+        if (installNow) {
+          await installFFmpeg();
+        }
+        return;
+      }
+
+      isEstimating = true;
+      updateConvertButton();
+
+      try {
+        const settings = collectConversionSettings();
+        logMessage(`Estimating ${selectedFiles.length} file${selectedFiles.length === 1 ? '' : 's'}...`, 'info');
+
+        const result = await window.electronAPI.estimateBatch(selectedFiles, settings);
+        if (!result?.success) {
+          throw new Error(result?.error || 'Estimate failed');
+        }
+
+        estimateCache = {};
+        result.files.forEach((entry) => {
+          estimateCache[entry.file] = entry;
+        });
+
+        updateFileList();
+
+        const totals = result.totals || {};
+        const inputSize = totals.totalInputSize || 0;
+        const outputSize = totals.totalEstimatedOutputSize || 0;
+        const timeSec = totals.totalEstimatedTimeSec || 0;
+        const estOk = totals.estimatedFiles || 0;
+        const estFail = totals.failedFiles || 0;
+
+        const delta = outputSize - inputSize;
+        const deltaLabel = delta >= 0 ? `+${formatFileSize(delta)}` : `-${formatFileSize(Math.abs(delta))}`;
+
+        logMessage(`Estimate complete: ${estOk} ok, ${estFail} failed`, estFail > 0 ? 'warning' : 'success');
+        logMessage(`Estimated output: ${formatFileSize(outputSize)} (input ${formatFileSize(inputSize)}, delta ${deltaLabel})`, 'info');
+        logMessage(`Estimated runtime: ${formatDuration(timeSec)}`, 'info');
+
+        const firstFew = result.files.filter((f) => f.success).slice(0, 5);
+        firstFew.forEach((entry) => {
+          const filename = entry.file.split(/[/\\]/).pop();
+          logMessage(
+            `  ${filename}: ${formatFileSize(entry.inputSize)} -> ~${formatFileSize(entry.estimatedOutputSize)} in ~${formatDuration(entry.estimatedTimeSec)}`,
+            'info'
+          );
+        });
+        if ((result.files.filter((f) => f.success).length) > firstFew.length) {
+          logMessage('  ...additional files omitted from log summary', 'info');
+        }
+      } catch (error) {
+        console.error('Estimate failed:', error);
+        logMessage(`Estimate failed: ${error.message}`, 'error');
+        alert(`Estimate failed: ${error.message}`);
+      } finally {
+        isEstimating = false;
+        updateConvertButton();
+      }
+    };
+
     window.startConversion = async function startConversion() {
       if (isConverting || selectedFiles.length === 0) return;
 
       // Check FFmpeg availability
       const ffmpegCheck = await window.electronAPI.checkFFmpeg();
       if (!ffmpegCheck.available) {
-        logMessage('FFmpeg not available — install FFmpeg first', 'error');
-        alert('FFmpeg is not installed. Please install FFmpeg and restart the app.');
+        logMessage('FFmpeg not available.', 'error');
+        const installNow = confirm('FFmpeg is not installed.\n\nInstall automatically now?');
+        if (installNow) {
+          await installFFmpeg();
+        }
         return;
       }
 
@@ -3453,47 +3846,9 @@
       logMessage(`Starting batch conversion of ${selectedFiles.length} file${selectedFiles.length === 1 ? '' : 's'}...`, 'info');
 
       // Collect settings
-      const sizeTargetMode = document.getElementById('size-target-mode')?.value || '';
-      let targetSizeMB = 0;
-      if (sizeTargetMode === 'episode') targetSizeMB = 350;
-      else if (sizeTargetMode === 'movie') targetSizeMB = 2816;
-      else if (sizeTargetMode === 'custom') targetSizeMB = parseInt(document.getElementById('size-target-mb')?.value) || 0;
-
-      const settings = {
-        videoFormat: document.getElementById('video-format')?.value || 'mp4',
-        videoCodec: document.getElementById('video-codec')?.value || 'libx264',
-        videoCrf: document.getElementById('video-crf')?.value || '23',
-        videoResolution: document.getElementById('video-resolution')?.value || '',
-        videoFps: document.getElementById('video-fps')?.value || '',
-        videoPreset: document.getElementById('video-preset')?.value || 'medium',
-        audioCodec: document.getElementById('audio-codec')?.value || 'aac',
-        audioBitrate: document.getElementById('audio-bitrate')?.value || '192',
-        audioSamplerate: document.getElementById('audio-samplerate')?.value || '',
-        audioChannels: document.getElementById('audio-channels')?.value || '',
-        subtitleMode: document.getElementById('subtitle-mode')?.value || 'copy',
-
-        // Size target
-        targetSizeMB: targetSizeMB,
-
-        // Output settings
-        useSourceFolder: document.getElementById('use-source-folder')?.checked ?? false,
-        outputFolder: document.getElementById('output-folder')?.value || '',
-        replaceOriginal: document.getElementById('replace-original')?.checked ?? false,
-        overwriteExisting: document.getElementById('overwrite-existing')?.checked ?? false,
-
-        // Naming settings
-        namingPattern: document.getElementById('naming-pattern')?.value || 'original',
-        customNamingPattern: document.getElementById('custom-pattern')?.value || '',
-
-        // Other settings
-        hwAccel: document.getElementById('hw-accel')?.value || '',
-
-        // Overwrite mode
-        overwriteMode: document.getElementById('overwrite-existing')?.checked ? 'yes' : 'no'
-      };
-
-      if (targetSizeMB > 0) {
-        logMessage(`Size target mode: ${targetSizeMB} MB per file (2-pass encoding)`, 'info');
+      const settings = collectConversionSettings();
+      if (settings.targetSizeMB > 0) {
+        logMessage(`Size target mode: ${settings.targetSizeMB} MB per file (2-pass encoding)`, 'info');
       }
 
       // Convert each file

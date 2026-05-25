@@ -80,6 +80,299 @@ function findSystemFFprobe() {
   return null;
 }
 
+function commandExists(command) {
+  try {
+    const checkCmd = process.platform === 'win32' ? 'where' : 'which';
+    execSync(`${checkCmd} ${command}`, { stdio: 'ignore' });
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
+function runCommand(command, args, options = {}) {
+  const { timeoutMs = 20 * 60 * 1000 } = options;
+
+  return new Promise((resolve) => {
+    let stdout = '';
+    let stderr = '';
+    let timedOut = false;
+
+    const proc = spawn(command, args, {
+      shell: false,
+      windowsHide: true
+    });
+
+    const timeout = setTimeout(() => {
+      timedOut = true;
+      try { proc.kill('SIGKILL'); } catch (e) {}
+    }, timeoutMs);
+
+    proc.stdout.on('data', (data) => {
+      stdout += data.toString();
+    });
+    proc.stderr.on('data', (data) => {
+      stderr += data.toString();
+    });
+
+    proc.on('error', (error) => {
+      clearTimeout(timeout);
+      resolve({
+        ok: false,
+        code: -1,
+        stdout,
+        stderr: `${stderr}\n${error.message}`.trim(),
+        timedOut: false
+      });
+    });
+
+    proc.on('close', (code) => {
+      clearTimeout(timeout);
+      resolve({
+        ok: !timedOut && code === 0,
+        code,
+        stdout,
+        stderr,
+        timedOut
+      });
+    });
+  });
+}
+
+async function tryInstallFFmpegWindows() {
+  const attempts = [];
+
+  if (commandExists('winget')) {
+    attempts.push({
+      label: 'winget',
+      command: 'winget',
+      args: [
+        'install',
+        '--id', 'Gyan.FFmpeg',
+        '--exact',
+        '--accept-package-agreements',
+        '--accept-source-agreements',
+        '--disable-interactivity',
+        '--scope', 'user'
+      ]
+    });
+    attempts.push({
+      label: 'winget-community',
+      command: 'winget',
+      args: [
+        'install',
+        '--id', 'FFmpeg.FFmpeg',
+        '--exact',
+        '--accept-package-agreements',
+        '--accept-source-agreements',
+        '--disable-interactivity',
+        '--scope', 'user'
+      ]
+    });
+  }
+
+  if (commandExists('choco')) {
+    attempts.push({
+      label: 'choco',
+      command: 'choco',
+      args: ['install', 'ffmpeg', '-y']
+    });
+  }
+
+  if (commandExists('scoop')) {
+    attempts.push({
+      label: 'scoop',
+      command: 'scoop',
+      args: ['install', 'ffmpeg']
+    });
+  }
+
+  if (attempts.length === 0) {
+    return {
+      success: false,
+      requiresManual: true,
+      platform: 'win32',
+      message: 'No supported package manager found.',
+      commandsTried: [],
+      manualCommands: [
+        'winget install --id Gyan.FFmpeg --exact --accept-package-agreements --accept-source-agreements --scope user',
+        'choco install ffmpeg -y',
+        'scoop install ffmpeg'
+      ]
+    };
+  }
+
+  const results = [];
+  for (const attempt of attempts) {
+    const result = await runCommand(attempt.command, attempt.args);
+    results.push({
+      installer: attempt.label,
+      command: `${attempt.command} ${attempt.args.join(' ')}`,
+      ...result
+    });
+    if (result.ok) {
+      return {
+        success: true,
+        platform: 'win32',
+        installer: attempt.label,
+        commandsTried: results
+      };
+    }
+  }
+
+  return {
+    success: false,
+    platform: 'win32',
+    requiresManual: true,
+    message: 'Automatic install commands failed.',
+    commandsTried: results,
+    manualCommands: [
+      'winget install --id Gyan.FFmpeg --exact --accept-package-agreements --accept-source-agreements --scope user',
+      'choco install ffmpeg -y',
+      'scoop install ffmpeg'
+    ]
+  };
+}
+
+async function tryInstallFFmpegMac() {
+  if (!commandExists('brew')) {
+    return {
+      success: false,
+      requiresManual: true,
+      platform: 'darwin',
+      message: 'Homebrew not found.',
+      commandsTried: [],
+      manualCommands: ['brew install ffmpeg']
+    };
+  }
+
+  const result = await runCommand('brew', ['install', 'ffmpeg']);
+  if (result.ok) {
+    return {
+      success: true,
+      platform: 'darwin',
+      installer: 'brew',
+      commandsTried: [{ installer: 'brew', command: 'brew install ffmpeg', ...result }]
+    };
+  }
+
+  return {
+    success: false,
+    requiresManual: true,
+    platform: 'darwin',
+    message: 'brew install failed.',
+    commandsTried: [{ installer: 'brew', command: 'brew install ffmpeg', ...result }],
+    manualCommands: ['brew install ffmpeg']
+  };
+}
+
+async function tryInstallFFmpegLinux() {
+  const isRoot = typeof process.getuid === 'function' ? process.getuid() === 0 : false;
+  const candidates = [];
+
+  if (commandExists('apt-get')) {
+    candidates.push(isRoot
+      ? { label: 'apt-get', command: 'apt-get', args: ['update'] }
+      : { label: 'sudo-apt-get', command: 'sudo', args: ['-n', 'apt-get', 'update'] });
+  }
+
+  if (commandExists('dnf')) {
+    candidates.push(isRoot
+      ? { label: 'dnf', command: 'dnf', args: ['install', '-y', 'ffmpeg'] }
+      : { label: 'sudo-dnf', command: 'sudo', args: ['-n', 'dnf', 'install', '-y', 'ffmpeg'] });
+  }
+
+  if (commandExists('pacman')) {
+    candidates.push(isRoot
+      ? { label: 'pacman', command: 'pacman', args: ['-Sy', '--noconfirm', 'ffmpeg'] }
+      : { label: 'sudo-pacman', command: 'sudo', args: ['-n', 'pacman', '-Sy', '--noconfirm', 'ffmpeg'] });
+  }
+
+  if (commandExists('zypper')) {
+    candidates.push(isRoot
+      ? { label: 'zypper', command: 'zypper', args: ['--non-interactive', 'install', 'ffmpeg'] }
+      : { label: 'sudo-zypper', command: 'sudo', args: ['-n', 'zypper', '--non-interactive', 'install', 'ffmpeg'] });
+  }
+
+  if (candidates.length === 0) {
+    return {
+      success: false,
+      requiresManual: true,
+      platform: 'linux',
+      message: 'No supported Linux package manager found.',
+      commandsTried: [],
+      manualCommands: ['sudo apt-get update && sudo apt-get install -y ffmpeg']
+    };
+  }
+
+  const results = [];
+  for (const candidate of candidates) {
+    if (candidate.label.includes('apt-get')) {
+      const updateResult = await runCommand(candidate.command, candidate.args);
+      results.push({
+        installer: candidate.label,
+        command: `${candidate.command} ${candidate.args.join(' ')}`,
+        ...updateResult
+      });
+      if (!updateResult.ok) {
+        continue;
+      }
+
+      const installCommand = isRoot ? 'apt-get' : 'sudo';
+      const installArgs = isRoot
+        ? ['install', '-y', 'ffmpeg']
+        : ['-n', 'apt-get', 'install', '-y', 'ffmpeg'];
+      const installResult = await runCommand(installCommand, installArgs);
+      results.push({
+        installer: candidate.label,
+        command: `${installCommand} ${installArgs.join(' ')}`,
+        ...installResult
+      });
+      if (installResult.ok) {
+        return {
+          success: true,
+          platform: 'linux',
+          installer: candidate.label,
+          commandsTried: results
+        };
+      }
+      continue;
+    }
+
+    const result = await runCommand(candidate.command, candidate.args);
+    results.push({
+      installer: candidate.label,
+      command: `${candidate.command} ${candidate.args.join(' ')}`,
+      ...result
+    });
+    if (result.ok) {
+      return {
+        success: true,
+        platform: 'linux',
+        installer: candidate.label,
+        commandsTried: results
+      };
+    }
+  }
+
+  const needsSudo = !isRoot && commandExists('sudo');
+  return {
+    success: false,
+    requiresManual: true,
+    platform: 'linux',
+    message: needsSudo
+      ? 'Install requires elevated privileges in a terminal.'
+      : 'Automatic install commands failed.',
+    commandsTried: results,
+    manualCommands: [
+      'sudo apt-get update && sudo apt-get install -y ffmpeg',
+      'sudo dnf install -y ffmpeg',
+      'sudo pacman -Sy --noconfirm ffmpeg',
+      'sudo zypper --non-interactive install ffmpeg'
+    ]
+  };
+}
+
 // ============================================================
 // Filename & Path Helpers
 // ============================================================
@@ -168,7 +461,8 @@ function generateOutputFilename(inputPath, settings, format) {
 }
 
 // Get output path for a conversion
-function getOutputPath(inputPath, settings, format) {
+function getOutputPath(inputPath, settings, format, options = {}) {
+  const { ensureDirectory = true } = options;
   const parsedPath = path.parse(inputPath);
   let outputFilename;
   let outputDir;
@@ -189,8 +483,8 @@ function getOutputPath(inputPath, settings, format) {
     }
   }
 
-  // Create output directory
-  if (!fs.existsSync(outputDir)) {
+  // Create output directory when needed
+  if (ensureDirectory && !fs.existsSync(outputDir)) {
     try {
       fs.mkdirSync(outputDir, { recursive: true });
     } catch (error) {
@@ -515,6 +809,269 @@ async function getVideoDuration(filePath) {
       resolve(null);
     });
   });
+}
+
+async function getMediaInfo(filePath) {
+  if (!ffprobePath) return null;
+
+  return new Promise((resolve) => {
+    const args = [
+      '-v', 'error',
+      '-print_format', 'json',
+      '-show_format',
+      '-show_streams',
+      filePath
+    ];
+
+    const proc = spawn(ffprobePath, args);
+    let output = '';
+    let killed = false;
+
+    const timeout = setTimeout(() => {
+      killed = true;
+      try { proc.kill('SIGKILL'); } catch (e) {}
+      resolve(null);
+    }, 15000);
+
+    proc.stdout.on('data', (data) => {
+      output += data.toString();
+    });
+
+    proc.on('close', () => {
+      clearTimeout(timeout);
+      if (killed) return;
+
+      try {
+        const parsed = JSON.parse(output || '{}');
+        const format = parsed.format || {};
+        const streams = Array.isArray(parsed.streams) ? parsed.streams : [];
+        const videoStream = streams.find((s) => s.codec_type === 'video');
+        const audioStream = streams.find((s) => s.codec_type === 'audio');
+
+        const duration = parseFloat(format.duration || videoStream?.duration || 0) || 0;
+        const inputSize = parseInt(format.size || 0, 10) || 0;
+        const totalBitrateKbps = parseInt(format.bit_rate || 0, 10) / 1000 || 0;
+        const audioBitrateKbps = parseInt(audioStream?.bit_rate || 0, 10) / 1000 || 0;
+        const videoBitrateKbps = parseInt(videoStream?.bit_rate || 0, 10) / 1000
+          || Math.max(0, totalBitrateKbps - audioBitrateKbps);
+
+        const width = parseInt(videoStream?.width || 0, 10) || 0;
+        const height = parseInt(videoStream?.height || 0, 10) || 0;
+        const fpsRaw = String(videoStream?.avg_frame_rate || videoStream?.r_frame_rate || '0/0');
+        const fpsParts = fpsRaw.split('/');
+        let fps = 0;
+        if (fpsParts.length === 2) {
+          const num = parseFloat(fpsParts[0]) || 0;
+          const den = parseFloat(fpsParts[1]) || 1;
+          fps = den > 0 ? num / den : 0;
+        } else {
+          fps = parseFloat(fpsRaw) || 0;
+        }
+
+        resolve({
+          duration,
+          inputSize,
+          totalBitrateKbps,
+          videoBitrateKbps,
+          audioBitrateKbps,
+          width,
+          height,
+          fps
+        });
+      } catch (error) {
+        resolve(null);
+      }
+    });
+
+    proc.on('error', () => {
+      clearTimeout(timeout);
+      if (killed) return;
+      resolve(null);
+    });
+  });
+}
+
+function clampNumber(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function estimatePresetMultiplier(preset) {
+  const map = {
+    ultrafast: 0.55,
+    superfast: 0.65,
+    veryfast: 0.8,
+    faster: 0.9,
+    fast: 1.0,
+    medium: 1.2,
+    slow: 1.6,
+    slower: 2.1,
+    veryslow: 2.8
+  };
+  return map[preset] || 1.2;
+}
+
+function estimateRuntimeFactor(settings, mediaInfo) {
+  const codec = String(settings.videoCodec || '').toLowerCase();
+  const preset = String(settings.videoPreset || 'medium').toLowerCase();
+  const hasVideo = codec !== 'none';
+  const targetFps = parseFloat(settings.videoFps || 0) || 0;
+  const sourceFps = mediaInfo?.fps || 30;
+
+  let baseFactor = 1.0;
+  if (!hasVideo) {
+    baseFactor = 0.08;
+  } else if (codec === 'copy') {
+    baseFactor = 0.06;
+  } else if (codec.includes('nvenc') || codec.includes('qsv') || codec.includes('amf')) {
+    baseFactor = 0.32;
+  } else if (codec.includes('libx265') || codec.includes('hevc')) {
+    baseFactor = 1.9;
+  } else if (codec.includes('vp9') || codec.includes('av1')) {
+    baseFactor = 2.4;
+  } else {
+    baseFactor = 1.1;
+  }
+
+  let resolutionFactor = 1.0;
+  const targetHeight = parseInt(settings.videoResolution || 0, 10) || 0;
+  if (targetHeight > 0 && mediaInfo?.height > 0) {
+    const ratio = targetHeight / mediaInfo.height;
+    resolutionFactor = clampNumber(ratio * ratio, 0.3, 2.8);
+  }
+
+  let fpsFactor = 1.0;
+  if (targetFps > 0 && sourceFps > 0) {
+    fpsFactor = clampNumber(targetFps / sourceFps, 0.5, 2.0);
+  }
+
+  return baseFactor * estimatePresetMultiplier(preset) * resolutionFactor * fpsFactor;
+}
+
+function estimateOutputSizeBytes(settings, mediaInfo) {
+  const inputSize = mediaInfo.inputSize || 0;
+  const duration = mediaInfo.duration || 0;
+  const codec = String(settings.videoCodec || '').toLowerCase();
+  const audioCodec = String(settings.audioCodec || '').toLowerCase();
+  const targetSizeMB = parseInt(settings.targetSizeMB || 0, 10) || 0;
+
+  if (duration <= 0 || inputSize <= 0) {
+    return { outputBytes: inputSize, reason: 'Not enough media metadata for estimate.' };
+  }
+
+  if (targetSizeMB > 0) {
+    const targetBytes = targetSizeMB * 1024 * 1024;
+    if (inputSize <= targetBytes) {
+      return { outputBytes: inputSize, reason: 'Already under target size (likely skipped).' };
+    }
+    return { outputBytes: targetBytes, reason: `Target size mode (~${targetSizeMB} MB).` };
+  }
+
+  if (codec === 'copy' && audioCodec === 'copy') {
+    return {
+      outputBytes: Math.round(inputSize * 1.01),
+      reason: 'Stream copy (nearly same size).'
+    };
+  }
+
+  const sourceAudioKbps = mediaInfo.audioBitrateKbps > 0 ? mediaInfo.audioBitrateKbps : 128;
+  const sourceVideoKbps = mediaInfo.videoBitrateKbps > 0
+    ? mediaInfo.videoBitrateKbps
+    : Math.max(250, mediaInfo.totalBitrateKbps - sourceAudioKbps);
+
+  let outputAudioKbps = sourceAudioKbps;
+  if (audioCodec === 'none') {
+    outputAudioKbps = 0;
+  } else if (audioCodec !== 'copy') {
+    outputAudioKbps = parseInt(settings.audioBitrate || 192, 10) || 192;
+  }
+
+  let codecEfficiency = 1.0;
+  if (codec.includes('libx265') || codec.includes('hevc') || codec.includes('qsv') || codec.includes('amf')) {
+    codecEfficiency = 0.62;
+  } else if (codec.includes('vp9') || codec.includes('av1')) {
+    codecEfficiency = 0.55;
+  } else if (codec.includes('nvenc')) {
+    codecEfficiency = 0.9;
+  } else if (codec === 'none') {
+    codecEfficiency = 0;
+  }
+
+  const crf = parseFloat(settings.videoCrf || '23');
+  let qualityFactor = 1.0;
+  if (!Number.isNaN(crf)) {
+    let crfEquivalent = crf;
+    if (codec.includes('libx265') || codec.includes('hevc')) {
+      crfEquivalent = crf - 5;
+    }
+    qualityFactor = Math.pow(2, (23 - crfEquivalent) / 6);
+  }
+  qualityFactor = clampNumber(qualityFactor, 0.35, 2.8);
+
+  let resolutionFactor = 1.0;
+  const targetHeight = parseInt(settings.videoResolution || 0, 10) || 0;
+  if (targetHeight > 0 && mediaInfo.height > 0) {
+    const ratio = targetHeight / mediaInfo.height;
+    resolutionFactor = clampNumber(ratio * ratio, 0.2, 2.5);
+  }
+
+  let fpsFactor = 1.0;
+  const targetFps = parseFloat(settings.videoFps || 0) || 0;
+  if (targetFps > 0 && mediaInfo.fps > 0) {
+    fpsFactor = clampNumber(targetFps / mediaInfo.fps, 0.4, 2.0);
+  }
+
+  const outputVideoKbps = codec === 'none'
+    ? 0
+    : Math.max(80, sourceVideoKbps * codecEfficiency * qualityFactor * resolutionFactor * fpsFactor);
+  const outputTotalKbps = Math.max(24, outputVideoKbps + outputAudioKbps);
+  const outputBytes = Math.round((outputTotalKbps * 1000 * duration) / 8);
+
+  let reason = 'Quality-based estimate (CRF + codec + resolution).';
+  if (codec === 'copy') {
+    reason = 'Video stream copied; estimate mostly audio/container changes.';
+  } else if (audioCodec === 'copy') {
+    reason = 'Audio copied; estimate mostly video changes.';
+  }
+
+  return { outputBytes, reason };
+}
+
+async function estimateFile(inputPath, settings) {
+  const validation = isValidFilePath(inputPath);
+  if (!validation.valid) {
+    return {
+      file: inputPath,
+      success: false,
+      error: `Invalid file: ${validation.reason}`
+    };
+  }
+
+  const mediaInfo = await getMediaInfo(inputPath);
+  if (!mediaInfo || !mediaInfo.duration || mediaInfo.duration <= 0) {
+    return {
+      file: inputPath,
+      success: false,
+      error: 'Could not read media metadata via ffprobe.'
+    };
+  }
+
+  const sizeEstimate = estimateOutputSizeBytes(settings, mediaInfo);
+  const runtimeFactor = estimateRuntimeFactor(settings, mediaInfo);
+  const estimatedTimeSec = Math.max(1, Math.round(mediaInfo.duration * runtimeFactor));
+  const estimatedOutputSize = Math.max(1, Math.round(sizeEstimate.outputBytes));
+  const outputPath = getOutputPath(inputPath, settings, settings.videoFormat, { ensureDirectory: false });
+
+  return {
+    file: inputPath,
+    success: true,
+    durationSec: mediaInfo.duration,
+    inputSize: mediaInfo.inputSize,
+    estimatedOutputSize,
+    estimatedTimeSec,
+    estimatedSpeedFactor: runtimeFactor,
+    outputPath,
+    note: sizeEstimate.reason
+  };
 }
 
 // ============================================================
@@ -1045,6 +1602,48 @@ ipcMain.handle('convert-file', async (event, inputPath, settings, fileIndex) => 
   }
 });
 
+ipcMain.handle('estimate-batch', async (event, files, settings) => {
+  try {
+    if (!ffprobePath) {
+      return {
+        success: false,
+        error: 'ffprobe not found. Install FFmpeg first.'
+      };
+    }
+
+    const fileList = Array.isArray(files) ? files : [];
+    const estimates = [];
+    let totalInputSize = 0;
+    let totalEstimatedOutputSize = 0;
+    let totalEstimatedTimeSec = 0;
+
+    for (const filePath of fileList) {
+      const estimate = await estimateFile(filePath, settings || {});
+      estimates.push(estimate);
+      if (estimate.success) {
+        totalInputSize += estimate.inputSize || 0;
+        totalEstimatedOutputSize += estimate.estimatedOutputSize || 0;
+        totalEstimatedTimeSec += estimate.estimatedTimeSec || 0;
+      }
+    }
+
+    return {
+      success: true,
+      files: estimates,
+      totals: {
+        totalFiles: fileList.length,
+        estimatedFiles: estimates.filter((e) => e.success).length,
+        failedFiles: estimates.filter((e) => !e.success).length,
+        totalInputSize,
+        totalEstimatedOutputSize,
+        totalEstimatedTimeSec
+      }
+    };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
 ipcMain.handle('stop-conversion', async () => {
   cancelRequested = true;
   if (activeFFmpegProcess) {
@@ -1121,21 +1720,59 @@ ipcMain.handle('test-ffmpeg', async (event, customPath) => {
   }
 });
 
-// Install FFmpeg — opens download page
+// Install FFmpeg using platform package managers
 ipcMain.handle('install-ffmpeg', async () => {
   try {
-    let url;
+    let installResult;
     if (process.platform === 'win32') {
-      url = 'https://www.gyan.dev/ffmpeg/builds/';
+      installResult = await tryInstallFFmpegWindows();
     } else if (process.platform === 'darwin') {
-      url = 'https://formulae.brew.sh/formula/ffmpeg';
+      installResult = await tryInstallFFmpegMac();
+    } else if (process.platform === 'linux') {
+      installResult = await tryInstallFFmpegLinux();
     } else {
-      url = 'https://ffmpeg.org/download.html';
+      installResult = {
+        success: false,
+        requiresManual: true,
+        platform: process.platform,
+        message: 'Unsupported platform for auto-install.',
+        manualCommands: []
+      };
     }
-    await shell.openExternal(url);
-    return { message: 'Opened FFmpeg download page. Install FFmpeg and restart the app.' };
+
+    if (installResult.success) {
+      ffmpegPath = findSystemFFmpeg();
+      ffprobePath = findSystemFFprobe();
+
+      if (ffmpegPath) {
+        return {
+          success: true,
+          message: `FFmpeg installed via ${installResult.installer}.`,
+          installer: installResult.installer,
+          ffmpegPath,
+          details: installResult.commandsTried || []
+        };
+      }
+
+      return {
+        success: false,
+        requiresManual: true,
+        message: 'Installer reported success but FFmpeg is still not detected in PATH. Restart the app or install manually.',
+        installer: installResult.installer,
+        details: installResult.commandsTried || [],
+        manualCommands: installResult.manualCommands || []
+      };
+    }
+
+    return {
+      success: false,
+      requiresManual: true,
+      message: installResult.message || 'Automatic FFmpeg install failed.',
+      details: installResult.commandsTried || [],
+      manualCommands: installResult.manualCommands || []
+    };
   } catch (error) {
-    return { error: error.message };
+    return { success: false, error: error.message };
   }
 });
 
